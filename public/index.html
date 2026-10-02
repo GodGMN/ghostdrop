@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#151816">
+  <meta name="description" content="Drop a file. Share a link. Let it disappear.">
+  <title>Ghostdrop · temporary file sharing</title>
+  <link rel="icon" href="/ghost.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header><a class="brand" href="/" aria-label="Ghostdrop home"><img src="/ghost.svg" width="44" height="48" alt=""><span>ghostdrop<span class="brand-dot">.</span></span></a></header>
+    <main id="main">
+      <section class="drop-zone" id="drop-zone" aria-label="Select a file">
+        <input id="file-picker" type="file" class="visually-hidden" aria-label="Choose a file">
+        <label class="drop-target" for="file-picker" tabindex="0" role="button">
+          <span class="drop-icon" aria-hidden="true">↓</span>
+          <span class="drop-title">Drop it here.</span>
+          <span class="muted">Or <span class="text-link">choose a file</span> to share.</span>
+        </label>
+      </section>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+    <footer>Drop a file. Share a link. Let it disappear.</footer>
+  </div>
+</body>
+</html>
