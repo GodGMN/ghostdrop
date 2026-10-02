@@ -6,6 +6,7 @@ import { httpError } from './security.js';
 import { registerFileRoutes } from './files.js';
 import { cleanup } from './lifecycle.js';
 import { registerAdminAuth } from './admin-auth.js';
+import { registerAdminRoutes } from './admin.js';
 
 export function createApp(config) {
   const store = openStore(config.dataDir);
@@ -42,6 +43,7 @@ export function createApp(config) {
   cleanupTimer.unref();
   const ready = runCleanup();
   ready.catch(err => console.error('Startup cleanup failed:',err.message));
+  registerAdminRoutes(app,store,requireAdmin,runCleanup);
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
   app.get(['/f/:id','/f/:id/preview','/f/:id/direct','/delete/:id','/admin'], (req,res) => res.sendFile(fileURLToPath(new URL('../public/index.html',import.meta.url))));
   app.use((err, req, res, next) => {
