@@ -5,6 +5,7 @@ import { receiveUpload } from './upload.js';
 import { httpError } from './security.js';
 import { registerFileRoutes } from './files.js';
 import { cleanup } from './lifecycle.js';
+import { registerAdminAuth } from './admin-auth.js';
 
 export function createApp(config) {
   const store = openStore(config.dataDir);
@@ -29,11 +30,12 @@ export function createApp(config) {
     next();
   });
   app.post('/api/uploads', async (req, res) => {
-    const file = await receiveUpload(req, store, config);
+    const file = await receiveUpload(req, store, config, res);
     res.status(201).json(file);
   });
   app.use(express.json({limit:'8kb'}));
   registerFileRoutes(app,store,config);
+  const requireAdmin=registerAdminAuth(app,config);
   let cleaning;
   const runCleanup = () => cleaning ||= cleanup(store).finally(() => { cleaning = undefined; });
   const cleanupTimer = setInterval(() => runCleanup().catch(err => console.error('Cleanup failed:',err.message)),config.cleanupIntervalMs);
@@ -46,5 +48,5 @@ export function createApp(config) {
     if (res.headersSent) return next(err);
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Something went wrong. Please try again.' });
   });
-  return { app, store, ready, runCleanup, close: () => { clearInterval(cleanupTimer); store.db.close(); } };
+  return { app, store, ready, runCleanup, requireAdmin, close: () => { clearInterval(cleanupTimer); store.db.close(); } };
 }

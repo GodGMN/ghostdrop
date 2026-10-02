@@ -20,7 +20,7 @@ async function detectType(path, name) {
   return 'application/octet-stream';
 }
 
-export async function receiveUpload(req, store, config) {
+export async function receiveUpload(req, store, config, res) {
   const id = token(), deletionToken = token();
   const partial = join(store.partialDir, id);
   const final = join(store.filesDir, id);
@@ -32,6 +32,7 @@ export async function receiveUpload(req, store, config) {
   active.add(id);
   const onAbort = () => { aborted = true; parser.destroy(httpError(400, 'Upload cancelled.')); };
   req.once('aborted', onAbort);
+  res?.once('close', onAbort);
   try {
     await new Promise((resolve, reject) => {
       parser.on('field', (name, value, info) => {
@@ -58,10 +59,11 @@ export async function receiveUpload(req, store, config) {
     const lifetime = lifetimes[fields.expiration || 'month'];
     if (!lifetime || !['true','false',undefined].includes(fields.oneTime) || (fields.password?.length || 0) > 256) throw httpError(400, 'Invalid upload settings.');
     const passwordHash = fields.password ? await hashPassword(fields.password) : null;
-    if (req.aborted) throw httpError(400, 'Upload cancelled.');
+    if (req.aborted || aborted) throw httpError(400, 'Upload cancelled.');
     const mime = await detectType(partial, filename);
     const now = Date.now();
     await rename(partial, final);
+    if (aborted) throw httpError(400, 'Upload cancelled.');
     store.db.prepare('INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,password_hash,delete_hash,one_time) VALUES(?,?,?,?,?,?,?,?,?,?)')
       .run(id, filename, mime, size, hash.digest('hex'), now, now + lifetime, passwordHash, digest(deletionToken), fields.oneTime === 'true' ? 1 : 0);
     return { id, name:filename, mime, size, expiresAt:now + lifetime, passwordProtected:!!passwordHash, oneTime:fields.oneTime === 'true', deletionToken };
@@ -71,5 +73,5 @@ export async function receiveUpload(req, store, config) {
     await Promise.all([rm(partial, { force:true }), rm(final, { force:true })]);
     if (!err.status) throw httpError(400, 'Upload could not be completed. Please try again.');
     throw err;
-  } finally { req.removeListener('aborted', onAbort); active.delete(id); }
+  } finally { req.removeListener('aborted', onAbort); res?.removeListener('close',onAbort); active.delete(id); }
 }
