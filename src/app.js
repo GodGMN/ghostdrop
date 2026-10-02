@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { openStore } from './store.js';
 import { receiveUpload } from './upload.js';
 import { httpError } from './security.js';
+import { registerFileRoutes } from './files.js';
+import { cleanup } from './lifecycle.js';
 
 export function createApp(config) {
   const store = openStore(config.dataDir);
@@ -30,10 +32,19 @@ export function createApp(config) {
     const file = await receiveUpload(req, store, config);
     res.status(201).json(file);
   });
+  app.use(express.json({limit:'8kb'}));
+  registerFileRoutes(app,store,config);
+  let cleaning;
+  const runCleanup = () => cleaning ||= cleanup(store).finally(() => { cleaning = undefined; });
+  const cleanupTimer = setInterval(() => runCleanup().catch(err => console.error('Cleanup failed:',err.message)),config.cleanupIntervalMs);
+  cleanupTimer.unref();
+  const ready = runCleanup();
+  ready.catch(err => console.error('Startup cleanup failed:',err.message));
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
+  app.get(['/f/:id','/f/:id/preview','/f/:id/direct','/delete/:id','/admin'], (req,res) => res.sendFile(fileURLToPath(new URL('../public/index.html',import.meta.url))));
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Something went wrong. Please try again.' });
   });
-  return { app, store, close: () => store.db.close() };
+  return { app, store, ready, runCleanup, close: () => { clearInterval(cleanupTimer); store.db.close(); } };
 }

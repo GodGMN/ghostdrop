@@ -19,3 +19,23 @@ export async function verifyPassword(password, stored) {
   return equal((await scrypt(password, salt, 64)).toString('hex'), hash);
 }
 export function httpError(status, message) { return Object.assign(new Error(message), { status }); }
+
+export function rateLimiter(limit = 8, windowMs = 15 * 60_000) {
+  const buckets = new Map();
+  return key => {
+    const now = Date.now();
+    for (const [key, bucket] of buckets) if (bucket.until <= now) buckets.delete(key);
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      if (buckets.size >= 5000) throw httpError(429, 'Too many requests. Please try again later.');
+      bucket = { count:0, until:now + windowMs }; buckets.set(key, bucket);
+    }
+    if (++bucket.count > limit) throw httpError(429, 'Too many attempts. Please try again in 15 minutes.');
+  };
+}
+export function cookies(req) {
+  return Object.fromEntries((req.headers.cookie || '').split(';').map(part => {
+    const index = part.indexOf('=');
+    return index < 0 ? ['', ''] : [part.slice(0,index).trim(), part.slice(index+1).trim()];
+  }));
+}

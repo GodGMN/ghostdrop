@@ -9,6 +9,7 @@ export async function fixture(t, overrides = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'ghostdrop-test-'));
   const config = { ...loadConfig(), dataDir, ...overrides };
   const runtime = createApp(config);
+  await runtime.ready;
   const server = runtime.app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
