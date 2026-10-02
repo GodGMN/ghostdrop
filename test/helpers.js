@@ -15,9 +15,9 @@ export async function fixture(t, overrides = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   config.origin = base;
   t.after(async () => {
-    await new Promise(resolve => server.close(resolve));
-    runtime.close();
-    rmSync(dataDir, { recursive:true, force:true });
+    await new Promise((resolve) => server.close(resolve));
+    await runtime.close();
+    rmSync(dataDir, { recursive: true, force: true });
   });
   return { ...runtime, base, config };
 }
@@ -26,6 +26,10 @@ export async function upload(base, options = {}) {
   body.append('password', options.password || '');
   body.append('expiration', options.expiration || 'month');
   body.append('oneTime', String(options.oneTime || false));
-  body.append('file', new Blob([options.content ?? 'hello from ghostdrop']), options.name || 'hello.txt');
-  return fetch(`${base}/api/uploads`, { method:'POST', body });
+  body.append(
+    'file',
+    new Blob([options.content ?? 'hello from ghostdrop']),
+    options.name || 'hello.txt',
+  );
+  return fetch(`${base}/api/uploads`, { method: 'POST', body });
 }

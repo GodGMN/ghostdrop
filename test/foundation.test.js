@@ -10,13 +10,19 @@ test('file records persist when the store reopens', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ghostdrop-'));
   try {
     const { db } = openStore(dir);
-    db.prepare('INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,delete_hash) VALUES(?,?,?,?,?,?,?,?)')
-      .run('test', 'hello.txt', 'text/plain', 5, 'hash', Date.now(), Date.now() + 1000, 'delete');
+    db.prepare(
+      'INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,delete_hash) VALUES(?,?,?,?,?,?,?,?)',
+    ).run('test', 'hello.txt', 'text/plain', 5, 'hash', Date.now(), Date.now() + 1000, 'delete');
     db.close();
     const reopened = openStore(dir);
-    assert.equal(reopened.db.prepare('SELECT name FROM files WHERE id = ?').get('test').name, 'hello.txt');
+    assert.equal(
+      reopened.db.prepare('SELECT name FROM files WHERE id = ?').get('test').name,
+      'hello.txt',
+    );
     reopened.db.close();
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('configuration rejects invalid sizes and public origins', () => {

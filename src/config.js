@@ -7,8 +7,20 @@ function integer(value, fallback, name, minimum = 1) {
 }
 
 export function loadConfig(env = process.env) {
+  if (
+    env.ADMIN_PASSWORD_HASH &&
+    !/^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/.test(env.ADMIN_PASSWORD_HASH)
+  )
+    throw new Error('Invalid ADMIN_PASSWORD_HASH. Generate it with scripts/hash-password.js');
   const origin = new URL(env.PUBLIC_ORIGIN || 'http://localhost:3000');
-  if (!['http:', 'https:'].includes(origin.protocol) || origin.pathname !== '/' || origin.search || origin.hash || origin.username || origin.password) {
+  if (
+    !['http:', 'https:'].includes(origin.protocol) ||
+    origin.pathname !== '/' ||
+    origin.search ||
+    origin.hash ||
+    origin.username ||
+    origin.password
+  ) {
     throw new Error('PUBLIC_ORIGIN must be an HTTP(S) origin');
   }
   return {

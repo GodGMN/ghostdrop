@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24.0.0" },
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js",
-    "test": "node --test",
-    "check": "node --check src/server.js && node --check src/app.js"
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check.js && npm run format:check",
+    "format": "prettier --write src public scripts test package.json README.md .prettierrc.json",
+    "format:check": "prettier --check src public scripts test package.json README.md .prettierrc.json"
   },
   "dependencies": {
     "busboy": "^1.6.0",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
   }
 }
