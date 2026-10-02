@@ -1,67 +1,220 @@
 import { main, escapeHtml, bytes, date, api, status } from './app.js';
 import { fileIcon } from './file-visual.js';
 
+let pending;
+const randomToken = () => {
+  const data = crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...data))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
+};
+const sessionPath = (context) => `/api/uploads/sessions/${context.id}`;
+const sessionHeaders = (context) => ({ 'X-Upload-Token': context.token });
+function wait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    function abort() {
+      clearTimeout(timer);
+      reject(new DOMException('Upload cancelled.', 'AbortError'));
+    }
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+  });
+}
+function retryable(error) {
+  return (
+    error.name !== 'AbortError' &&
+    (!error.status || [408, 409, 500, 502, 503, 504].includes(error.status))
+  );
+}
+async function retry(context, work, reconcile = false) {
+  for (let attempt = 0; ; attempt++) {
+    context.controller.signal.throwIfAborted();
+    try {
+      return await work();
+    } catch (error) {
+      if (!retryable(error) || attempt >= 3) throw error;
+      status('Connection interrupted. Retrying…');
+      await wait(300 * 2 ** attempt, context.controller.signal);
+      if (reconcile) {
+        const current = await retry(context, () =>
+          api(sessionPath(context), {
+            headers: sessionHeaders(context),
+            signal: context.controller.signal,
+          }),
+        );
+        context.offset = current.offset;
+      }
+    }
+  }
+}
+async function discard(context) {
+  try {
+    const response = await fetch(sessionPath(context), {
+      method: 'DELETE',
+      headers: sessionHeaders(context),
+      signal: AbortSignal.timeout(5000),
+    });
+    return response.ok || [404, 410].includes(response.status);
+  } catch {
+    return false;
+  }
+}
+function sendChunk(context, file, chunkSize, onProgress) {
+  if (context.offset >= file.size) return Promise.resolve({ offset: context.offset });
+  return new Promise((resolve, reject) => {
+    const offset = context.offset;
+    const xhr = new XMLHttpRequest();
+    context.xhr = xhr;
+    xhr.open('PUT', `${sessionPath(context)}/chunks`);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('X-Upload-Token', context.token);
+    xhr.setRequestHeader('X-Upload-Offset', String(offset));
+    xhr.responseType = 'json';
+    xhr.timeout = 2 * 60_000;
+    xhr.upload.onprogress = (event) => {
+      if (!context.cancelled) onProgress(offset + event.loaded);
+    };
+    xhr.onabort = () => reject(new DOMException('Upload cancelled.', 'AbortError'));
+    xhr.onerror = () => reject(new Error('The connection was interrupted.'));
+    xhr.ontimeout = () => reject(new Error('The upload request timed out.'));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) resolve(xhr.response);
+      else
+        reject(
+          Object.assign(new Error(xhr.response?.error || 'The upload request failed. Try again.'), {
+            status: xhr.status || 502,
+          }),
+        );
+    };
+    xhr.send(file.slice(offset, Math.min(file.size, offset + chunkSize)));
+  });
+}
 export async function upload(file, form, disposeThumbnail = () => {}) {
   if (form.dataset.uploading) return;
   form.dataset.uploading = 'true';
-  const data = new FormData(form);
-  data.set('oneTime', String(form.elements.oneTime.checked));
-  data.append('file', file, file.name);
+  const settings = {
+    name: file.name,
+    size: file.size,
+    password: form.elements.password.value,
+    expiration: form.elements.expiration.value,
+    oneTime: form.elements.oneTime.checked,
+  };
+  const fingerprint = JSON.stringify(settings);
   const controls = [...form.querySelectorAll('input,select,button')];
-  controls.forEach((el) => (el.disabled = true));
+  controls.forEach((element) => (element.disabled = true));
   const progress = document.querySelector('#upload-progress');
-  const restore = () => {
-    delete form.dataset.uploading;
-    controls.forEach((el) => (el.disabled = false));
-    progress.innerHTML = '';
-  };
-  try {
-    const { maxFileBytes } = await api('/api/config');
-    if (file.size > maxFileBytes)
-      throw new Error(`This file is too large. The limit is ${bytes(maxFileBytes)}.`);
-  } catch (err) {
-    restore();
-    status(err.message, true);
-    return;
-  }
   progress.innerHTML =
-    '<progress max="100" value="0" aria-label="Upload progress"></progress><p class="small-note" id="progress-label">Uploading… 0%</p><button type="button" id="cancel-upload" class="button secondary full">Cancel upload</button>';
-  status('');
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/uploads');
-  xhr.responseType = 'json';
-  xhr.timeout = 15 * 60_000;
-  xhr.upload.onprogress = (event) => {
-    if (!event.lengthComputable) return;
-    const percent = Math.round((event.loaded / event.total) * 100);
+    '<progress max="100" value="0" aria-label="Upload progress"></progress><p class="small-note" id="progress-label">Starting upload…</p><button type="button" id="cancel-upload" class="button secondary full">Cancel upload</button>';
+  const context =
+    pending?.file === file && pending.fingerprint === fingerprint
+      ? pending
+      : { id: randomToken(), token: randomToken(), file, fingerprint, offset: 0 };
+  const old = pending;
+  pending = context;
+  context.controller = new AbortController();
+  context.cancelled = false;
+  context.xhr = null;
+  document.querySelector('#cancel-upload').onclick = () => {
+    context.cancelled = true;
+    context.controller.abort();
+    context.xhr?.abort();
+    status('Cancelling upload…');
+    context.cancellation = discard(context);
+  };
+  function updateProgress(uploaded) {
+    const percent = file.size ? Math.min(100, Math.round((uploaded / file.size) * 100)) : 100;
     progress.querySelector('progress').value = percent;
-    document.querySelector('#progress-label').textContent =
-      percent === 100 ? 'Saving your file…' : `Uploading… ${percent}%`;
-  };
-  document.querySelector('#cancel-upload').onclick = () => xhr.abort();
-  xhr.onabort = () => {
-    restore();
-    status('Upload cancelled. Your file is still selected.');
-  };
-  xhr.onerror = () => {
-    restore();
-    status('The connection was interrupted. Your file is still selected; try again.', true);
-  };
-  xhr.ontimeout = () => {
-    restore();
-    status('The upload timed out. Try again.', true);
-  };
-  xhr.onload = () => {
-    if (xhr.status !== 201) {
-      restore();
-      status(xhr.response?.error || 'Upload failed. Please try again.', true);
-      return;
+    document.querySelector('#progress-label').textContent = `Uploading… ${percent}%`;
+  }
+  try {
+    status('');
+    if (old && old !== context) await discard(old);
+    const config = await retry(context, () =>
+      api('/api/config', { signal: context.controller.signal }),
+    );
+    if (file.size > config.maxFileBytes)
+      throw Object.assign(
+        new Error(`This file is too large. The limit is ${bytes(config.maxFileBytes)}.`),
+        { status: 413 },
+      );
+    const initialized = await retry(context, () =>
+      api('/api/uploads/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: context.controller.signal,
+        body: JSON.stringify({ ...settings, id: context.id, token: context.token }),
+      }),
+    );
+    context.offset = initialized.offset;
+    updateProgress(context.offset);
+    while (context.offset < file.size) {
+      const result = await retry(
+        context,
+        () => sendChunk(context, file, config.chunkSize, updateProgress),
+        true,
+      );
+      if (
+        !Number.isSafeInteger(result.offset) ||
+        result.offset < context.offset ||
+        (result.offset === context.offset && context.offset < file.size) ||
+        result.offset > file.size
+      )
+        throw new Error('Invalid upload acknowledgement.');
+      context.offset = result.offset;
+      updateProgress(context.offset);
     }
+    document.querySelector('#progress-label').textContent = 'Saving your file…';
+    const complete = () =>
+      api(`${sessionPath(context)}/complete`, {
+        method: 'POST',
+        headers: sessionHeaders(context),
+        signal: context.controller.signal,
+      });
+    let current = await retry(context, complete);
+    const deadline = Date.now() + 10 * 60_000;
+    while (current.state !== 'complete') {
+      if (Date.now() > deadline)
+        throw new Error('Saving is taking longer than expected. Click Upload to check again.');
+      await wait(300, context.controller.signal);
+      current = await retry(context, () =>
+        api(sessionPath(context), {
+          headers: sessionHeaders(context),
+          signal: context.controller.signal,
+        }),
+      );
+      if (current.error) throw new Error(current.error);
+      if (current.state === 'uploading') current = await retry(context, complete);
+    }
+    pending = undefined;
     disposeThumbnail();
-    receipt(xhr.response);
-  };
-  xhr.send(data);
+    receipt(current.file);
+  } catch (error) {
+    if (context.cancelled) {
+      const removed = await context.cancellation;
+      if (pending === context) pending = undefined;
+      status(
+        removed
+          ? 'Upload cancelled. Your file is still selected.'
+          : 'Upload cancelled. Unfinished uploads expire automatically.',
+      );
+    } else {
+      if ([404, 410, 413].includes(error.status) && pending === context) pending = undefined;
+      status(`${error.message} Your file is still selected; click Upload to retry.`, true);
+    }
+  } finally {
+    if (main.contains(form)) {
+      delete form.dataset.uploading;
+      controls.forEach((element) => (element.disabled = false));
+      progress.innerHTML = '';
+    }
+  }
 }
+
 function receipt(file) {
   const base = `${location.origin}/f/${file.id}`;
   const links = [

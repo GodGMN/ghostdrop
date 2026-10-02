@@ -1,6 +1,7 @@
 import { rm, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { httpError } from './security.js';
+import { cleanupSessions } from './upload-sessions.js';
 
 export async function deleteFile(store, id) {
   // The state blocks new access even if unlink fails. Cleanup retries later.
@@ -20,7 +21,7 @@ export async function availableFile(store, id) {
 }
 export async function cleanup(store) {
   let files = 0,
-    partials = 0;
+    partials = await cleanupSessions(store);
   const records = store.db
     .prepare("SELECT id FROM files WHERE expires_at <= ? OR state != 'available'")
     .all(Date.now());
@@ -30,6 +31,7 @@ export async function cleanup(store) {
   }
   for (const id of await readdir(store.partialDir)) {
     if (store.activeUploads?.has(id)) continue;
+    if (store.db.prepare('SELECT id FROM upload_sessions WHERE id = ?').get(id)) continue;
     const path = join(store.partialDir, id);
     try {
       if ((await stat(path)).mtimeMs < Date.now() - 60 * 60_000) {

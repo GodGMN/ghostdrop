@@ -13,7 +13,7 @@ export const lifetimes = {
   week: 604_800_000,
   month: 30 * 86_400_000,
 };
-async function detectType(path, name) {
+export async function detectType(path, name) {
   const file = await open(path, 'r');
   const buffer = Buffer.alloc(16);
   try {

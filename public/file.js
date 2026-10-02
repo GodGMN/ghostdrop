@@ -82,22 +82,23 @@ export async function initFile() {
     }
   }
   async function showPreview(file) {
+    if (file.mime.startsWith('image/')) {
+      const image = document.createElement('img');
+      image.alt = file.name;
+      image.className = 'preview-image';
+      image.onerror = () =>
+        status('The image preview could not be loaded. You can still download the file.', true);
+      image.src = `${base}/preview`;
+      document.querySelector('#file-action').prepend(image);
+      return;
+    }
     try {
       const response = await fetch(`${base}/preview`);
       if (!response.ok) {
         const body = await response.json();
         throw new Error(body.error);
       }
-      if (file.mime.startsWith('image/')) {
-        const url = URL.createObjectURL(await response.blob());
-        const image = document.createElement('img');
-        image.alt = file.name;
-        image.className = 'preview-image';
-        image.src = url;
-        image.onload = () => URL.revokeObjectURL(url);
-        image.onerror = () => URL.revokeObjectURL(url);
-        document.querySelector('#file-action').prepend(image);
-      } else {
+      {
         const text = document.createElement('pre');
         text.className = 'preview-text';
         text.textContent = await response.text();

@@ -27,6 +27,29 @@ export function openStore(dataDir) {
     ) STRICT;
     CREATE INDEX IF NOT EXISTS files_expiry ON files(expires_at);
     CREATE INDEX IF NOT EXISTS files_hash ON files(sha256);
+    CREATE TABLE IF NOT EXISTS upload_sessions (
+      id TEXT PRIMARY KEY,
+      token_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      offset INTEGER NOT NULL DEFAULT 0,
+      password_hash TEXT,
+      expiration TEXT NOT NULL,
+      one_time INTEGER NOT NULL,
+      state TEXT NOT NULL DEFAULT 'uploading',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      receipt_json TEXT,
+      error TEXT
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS uploads_updated ON upload_sessions(updated_at);
   `);
-  return { db, dataDir, filesDir: join(dataDir, 'files'), partialDir: join(dataDir, 'partial') };
+  return {
+    db,
+    dataDir,
+    filesDir: join(dataDir, 'files'),
+    partialDir: join(dataDir, 'partial'),
+    activeUploads: new Set(),
+    uploadOperations: new Map(),
+  };
 }
