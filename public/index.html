@@ -23,11 +23,31 @@
         <section class="drop-zone" id="drop-zone" aria-label="Select a file">
           <input id="file-picker" type="file" class="visually-hidden" aria-label="Choose a file" />
           <label class="drop-target" for="file-picker" tabindex="0" role="button">
-            <span class="drop-icon" aria-hidden="true">↓</span>
-            <span class="drop-title">Drop it here.</span>
+            <span class="drop-icon" aria-hidden="true"
+              ><svg viewBox="0 0 48 58" fill="none">
+                <path
+                  d="M10 4h20l11 11v35a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M30 4v11h11"
+                  stroke="var(--panel)"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M24 42V27m-7 7 7-7 7 7"
+                  stroke="var(--panel)"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                /></svg
+            ></span>
+            <span class="drop-title">Drop a file.</span>
             <span class="muted">Or <span class="text-link">choose a file</span> to share.</span>
           </label>
         </section>
+        <p class="drop-note">Nothing uploads until you're ready.</p>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </main>
       <footer>Drop a file. Share a link. Let it disappear.</footer>

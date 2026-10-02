@@ -13,7 +13,7 @@ export async function initAdmin() {
   }
 }
 function login(message = '') {
-  main.innerHTML = `<section class="card"><p class="eyebrow">Ghostdrop admin</p><h1>Welcome back.</h1><form id="admin-login" class="form-grid"><label class="field">Admin password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">Sign in</button></form></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
+  main.innerHTML = `<section class="card login-card"><p class="eyebrow">Ghostdrop admin</p><h1>Welcome back.</h1><form id="admin-login" class="form-grid"><label class="field">Admin password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">Sign in</button></form></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
   status(message, !!message);
   document.querySelector('#admin-login').onsubmit = async (event) => {
     event.preventDefault();

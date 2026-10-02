@@ -28,7 +28,7 @@ export async function initFile() {
     main.innerHTML = `<section class="card"><p class="eyebrow">Gone for good</p><h1>File unavailable.</h1><p class="muted">${escapeHtml(message)}</p><a class="button full" href="/">Share a new file</a></section>`;
   }
   function render(file) {
-    main.innerHTML = `<section class="card"><p class="eyebrow">${deleting ? 'Private deletion link' : 'A little something for you'}</p><div class="shared-file"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><h1>${escapeHtml(file.name)}</h1></div><p class="muted">${bytes(file.size)} · Expires ${date(file.expiresAt)}</p>${file.oneTime ? '<p class="small-note">One-time file. Starting the download deletes the stored file, even if the transfer is interrupted.</p>' : ''}<div id="file-action"></div></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
+    main.innerHTML = `<section class="card share-card"><p class="eyebrow">${deleting ? 'Private deletion link' : 'Shared file'}</p><div id="file-preview"></div><div class="shared-file"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><h1>${escapeHtml(file.name)}</h1></div><p class="file-size">${bytes(file.size)} · Expires ${date(file.expiresAt)}</p>${file.oneTime ? '<p class="small-note">One-time file. Starting the download deletes the stored file, even if the transfer is interrupted.</p>' : ''}<div id="file-action"></div></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
     const action = document.querySelector('#file-action');
     if (deleting) {
       action.innerHTML =
@@ -89,7 +89,8 @@ export async function initFile() {
       image.onerror = () =>
         status('The image preview could not be loaded. You can still download the file.', true);
       image.src = `${base}/preview`;
-      document.querySelector('#file-action').prepend(image);
+      document.querySelector('#file-preview').append(image);
+      document.querySelector('.shared-file .file-icon').hidden = true;
       return;
     }
     try {
@@ -102,7 +103,7 @@ export async function initFile() {
         const text = document.createElement('pre');
         text.className = 'preview-text';
         text.textContent = await response.text();
-        document.querySelector('#file-action').prepend(text);
+        document.querySelector('#file-preview').append(text);
       }
     } catch (err) {
       status(err.message, true);

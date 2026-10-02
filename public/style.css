@@ -1,10 +1,10 @@
 :root {
   color-scheme: dark;
   --bg: #151816;
-  --panel: #1b201d;
-  --line: #343e37;
+  --panel: #1e2520;
+  --line: #354139;
   --text: #f0f2e9;
-  --muted: #9ba69d;
+  --muted: #a2ada4;
   --green: #cbf3c0;
   --danger: #ffb3a6;
   font-family:
@@ -50,7 +50,7 @@ label:focus-visible {
   outline-offset: 5px;
 }
 .shell {
-  width: min(100% - 40px, 560px);
+  width: min(100% - 48px, 500px);
   margin: auto;
   min-height: 100svh;
   display: flex;
@@ -59,7 +59,7 @@ label:focus-visible {
 header {
   display: flex;
   justify-content: center;
-  padding: clamp(44px, 11vh, 110px) 0 48px;
+  padding: 68px 0 48px;
 }
 .brand {
   display: inline-flex;
@@ -74,10 +74,14 @@ header {
 }
 main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 24px;
 }
 .drop-zone {
-  border: 1.5px dashed #536257;
-  border-radius: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   background: var(--panel);
   transition:
     background 0.2s,
@@ -88,31 +92,37 @@ main {
   border-color: var(--green);
 }
 .drop-target {
-  min-height: 300px;
+  min-height: 270px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 13px;
   cursor: pointer;
   padding: 35px 20px;
   text-align: center;
 }
 .drop-icon {
-  width: 70px;
-  height: 70px;
-  display: grid;
-  place-items: center;
-  background: #2c382e;
+  width: 50px;
+  height: 60px;
   color: var(--green);
-  border-radius: 22px;
-  font-size: 42px;
-  font-weight: 300;
-  margin-bottom: 9px;
+  margin-bottom: 10px;
+}
+.drop-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.drop-note {
+  color: var(--muted);
+  font-size: 10px;
+  margin: 16px 0 0;
+}
+.drop-target .muted {
+  font-size: 13px;
 }
 .drop-title {
-  font-size: 29px;
-  font-weight: 650;
+  font-size: 27px;
+  font-weight: 700;
   letter-spacing: -0.8px;
 }
 .text-link {
@@ -136,8 +146,8 @@ main {
 footer {
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
-  padding: 48px 0 38px;
+  font-size: 11px;
+  padding: 28px 0 34px;
   letter-spacing: 0.15px;
 }
 .status {
@@ -154,7 +164,7 @@ footer {
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 28px;
 }
 .file-row {
@@ -169,7 +179,7 @@ footer {
   height: 54px;
   flex-shrink: 0;
   border: 1px solid #526455;
-  border-radius: 10px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
   color: var(--green);
@@ -207,7 +217,7 @@ footer {
   margin: 0;
 }
 .file-name {
-  font-weight: 600;
+  font-weight: 700;
   overflow-wrap: anywhere;
   margin: 0 0 5px;
 }
@@ -240,17 +250,17 @@ footer {
 .field {
   display: grid;
   gap: 9px;
-  font-size: 14px;
+  font-size: 12px;
 }
 .field input,
 .field select,
 .search-input {
   width: 100%;
-  border: 1px solid #465149;
-  border-radius: 10px;
-  background: #151a17;
+  border: 1px solid #3c473f;
+  border-radius: 6px;
+  background: var(--bg);
   color: var(--text);
-  padding: 12px 14px;
+  padding: 12px;
   min-height: 46px;
 }
 .field input::placeholder {
@@ -264,7 +274,7 @@ footer {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.5;
   cursor: pointer;
 }
@@ -286,11 +296,11 @@ footer {
   gap: 10px;
   min-height: 46px;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: var(--green);
   color: #1a271b;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
 }
 .button:hover {
@@ -346,8 +356,8 @@ p {
 }
 .eyebrow {
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 1.8px;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--green);
   margin: 0 0 12px;
 }
@@ -359,14 +369,14 @@ p {
 }
 .link-label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 8px;
   display: block;
 }
 .link-box {
   display: flex;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
 }
 .link-box input {
@@ -374,7 +384,7 @@ p {
   width: 0;
   border: 0;
   padding: 13px;
-  background: #151a17;
+  background: var(--bg);
   font-size: 12px;
   color: var(--muted);
   font-family: ui-monospace, monospace;
@@ -387,7 +397,7 @@ p {
   cursor: pointer;
   padding: 10px 14px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .private-link {
   border-top: 1px solid var(--line);
@@ -412,8 +422,11 @@ progress {
   display: block;
   max-width: 100%;
   max-height: 450px;
-  margin: 24px auto;
-  border-radius: 10px;
+  width: 100%;
+  object-fit: contain;
+  background: var(--bg);
+  margin: 18px auto 24px;
+  border-radius: 8px;
 }
 .preview-text {
   overflow: auto;
@@ -478,7 +491,7 @@ td .button {
 }
 .table-name {
   display: block;
-  font-weight: 600;
+  font-weight: 700;
   max-width: 280px;
   overflow-wrap: anywhere;
 }
@@ -503,7 +516,7 @@ td .button {
     padding: 22px;
   }
   .drop-target {
-    min-height: 280px;
+    min-height: 240px;
   }
   .brand {
     font-size: 30px;
@@ -521,5 +534,132 @@ td .button {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+.file-name {
+  font-size: 16px;
+  letter-spacing: -0.3px;
+}
+.file-icon {
+  border-radius: 6px;
+}
+.file-icon.has-thumbnail {
+  width: 64px;
+  height: 72px;
+}
+.upload-settings {
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 16px;
+}
+.upload-settings .toggle-row {
+  grid-column: 1 / -1;
+}
+.upload-settings .field {
+  color: var(--muted);
+  font-size: 12px;
+  align-content: start;
+}
+.upload-settings .field small {
+  font-size: 10px;
+}
+.upload-submit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+}
+.upload-submit > span {
+  font-size: 10px;
+}
+.button {
+  font-size: 13px;
+}
+.share-card .shared-file h1 {
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+.share-card .actions {
+  margin-top: 22px;
+}
+.share-card .preview-text {
+  border-radius: 8px;
+  margin-top: 18px;
+}
+.receipt-file .muted {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.admin-shell main {
+  justify-content: flex-start;
+}
+.admin-shell .table-scroll {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.admin-shell th {
+  background: #1a201c;
+  padding-block: 14px;
+}
+.admin-shell td:last-child .button {
+  margin: 0 5px 8px 0;
+}
+.admin-toolbar h1 {
+  margin: 0 auto 0 0;
+}
+.admin-toolbar {
+  gap: 10px;
+}
+.admin-shell .stats {
+  padding: 18px 0;
+  border-block: 1px solid var(--line);
+}
+.login-card {
+  max-width: 500px;
+  width: 100%;
+  margin-inline: auto;
+}
+@media (max-width: 600px) {
+  .upload-settings {
+    gap: 18px 12px;
+  }
+  .upload-settings input,
+  .upload-settings select {
+    font-size: 12px;
+    min-width: 0;
+    padding: 10px;
+  }
+  .file-name {
+    font-size: 14px;
+  }
+  .file-row {
+    gap: 12px;
+  }
+  .file-icon.has-thumbnail {
+    width: 56px;
+    height: 64px;
+  }
+  .share-card .shared-file h1 {
+    font-size: 18px;
+  }
+  .upload-submit > span {
+    font-size: 9px;
+  }
+  .admin-shell header .brand {
+    font-size: 28px;
+  }
+  .admin-toolbar input {
+    min-width: 140px;
+  }
+  .admin-shell .stats {
+    font-size: 12px;
+    line-height: 1.6;
   }
 }
