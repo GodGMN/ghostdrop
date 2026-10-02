@@ -59,7 +59,10 @@ export function createApp(config) {
   ready.catch((err) => console.error('Startup cleanup failed:', err.message));
   registerAdminRoutes(app, store, requireAdmin, runCleanup);
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
-  app.get(['/f/:id', '/f/:id/preview', '/f/:id/direct', '/delete/:id', '/admin'], (req, res) =>
+  app.get('/f/:id/preview', (req, res) =>
+    res.redirect(302, `/f/${encodeURIComponent(req.params.id)}`),
+  );
+  app.get(['/f/:id', '/f/:id/direct', '/delete/:id', '/admin'], (req, res) =>
     res.sendFile(fileURLToPath(new URL('../public/index.html', import.meta.url))),
   );
   app.use((err, req, res, next) => {

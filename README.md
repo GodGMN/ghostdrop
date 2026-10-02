@@ -25,7 +25,9 @@ npm run check
 
 Select or drop one file. Selection and settings stay in the browser until you click **Upload file**. Set an optional access password, a one-time download rule, and an expiration of one hour, one day, one week, or 30 days. The default is 30 days.
 
-After upload, copy the download page, direct download, or preview link. Preview is available for PNG, JPEG, GIF, WebP, and text files up to 1 MiB. Uploaded HTML and SVG are downloadable attachments, never application pages. Text previews show literal text.
+Images show a local thumbnail on selection. Other files show an icon for their type; unknown types show a page with a short extension label.
+
+After upload, copy the sharing page or direct download link. The sharing page automatically previews PNG, JPEG, GIF, WebP, and text files up to 1 MiB. Password-protected and one-time files have no preview. Uploaded HTML and SVG are downloadable attachments, never application pages. Text previews show literal text. Old preview-page URLs redirect to the sharing page.
 
 Keep the separate deletion link private. Opening it shows a confirmation; clicking **Delete this file** removes the file and its sharing links. The deletion token is in the URL fragment and is not sent with the page request.
 

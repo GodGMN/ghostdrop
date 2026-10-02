@@ -14,6 +14,7 @@ import {
 
 export const canPreview = (record) =>
   !record.one_time &&
+  !record.password_hash &&
   (record.mime.startsWith('image/') ||
     (record.mime === 'text/plain' && record.size <= 1024 * 1024));
 export function publicFile(record, locked = false) {

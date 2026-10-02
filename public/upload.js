@@ -1,6 +1,7 @@
 import { main, escapeHtml, bytes, date, api, status } from './app.js';
+import { fileIcon } from './file-visual.js';
 
-export async function upload(file, form) {
+export async function upload(file, form, disposeThumbnail = () => {}) {
   if (form.dataset.uploading) return;
   form.dataset.uploading = 'true';
   const data = new FormData(form);
@@ -56,23 +57,20 @@ export async function upload(file, form) {
       status(xhr.response?.error || 'Upload failed. Please try again.', true);
       return;
     }
+    disposeThumbnail();
     receipt(xhr.response);
   };
   xhr.send(data);
 }
 function receipt(file) {
   const base = `${location.origin}/f/${file.id}`;
-  const previewAvailable =
-    !file.oneTime &&
-    (file.mime.startsWith('image/') || (file.mime === 'text/plain' && file.size <= 1024 * 1024));
   const links = [
-    ['Download page', base],
-    ...(previewAvailable ? [['Preview', `${base}/preview`]] : []),
+    ['Share file', base],
     ['Direct download', `${base}/direct`],
   ];
   const linkRow = (label, url, privateLink = false) =>
     `<div class="link-row${privateLink ? ' private-link' : ''}"><label class="link-label">${label}${privateLink ? ' · keep this private' : ''}</label><div class="link-box"><input type="text" readonly aria-label="${label} URL" value="${escapeHtml(url)}"><button type="button" class="copy-button" aria-label="Copy ${label.toLowerCase()} link">Copy</button></div></div>`;
-  main.innerHTML = `<section class="card"><div class="receipt-head"><p class="eyebrow">Ready to share</p><h1>Your file is up.</h1><p class="muted">${escapeHtml(file.name)} · ${bytes(file.size)}</p>${file.passwordProtected ? '<span class="badge">Password protected</span>' : ''}${file.oneTime ? '<span class="badge">One-time download</span>' : ''}</div>
+  main.innerHTML = `<section class="card"><div class="receipt-head"><p class="eyebrow">Ready to share</p><h1>Your file is up.</h1><div class="receipt-file"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><p class="muted">${escapeHtml(file.name)} · ${bytes(file.size)}</p></div>${file.passwordProtected ? '<span class="badge">Password protected</span>' : ''}${file.oneTime ? '<span class="badge">One-time download</span>' : ''}</div>
     ${links.map(([label, url]) => linkRow(label, url)).join('')}
     ${linkRow('Delete file', `${location.origin}/delete/${file.id}#${file.deletionToken}`, true)}
     <p class="small-note">${file.oneTime ? 'Deleted when the first download starts, even if interrupted. Otherwise, expires' : 'Expires'} ${date(file.expiresAt)}.</p>

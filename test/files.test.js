@@ -39,12 +39,22 @@ test('password protection guards download and preview, including direct byte URL
   assert.equal(unlocked.status, 200);
   const cookie = unlocked.headers.get('set-cookie').split(';')[0];
   assert.match(unlocked.headers.get('set-cookie'), /HttpOnly/);
-  for (const endpoint of ['download', 'preview']) {
-    const response = await fetch(`${url}/${endpoint}`, { headers: { Cookie: cookie } });
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), 'hello from ghostdrop');
-  }
+  const download = await fetch(`${url}/download`, { headers: { Cookie: cookie } });
+  assert.equal(download.status, 200);
+  assert.equal(await download.text(), 'hello from ghostdrop');
+  assert.equal((await fetch(`${url}/preview`, { headers: { Cookie: cookie } })).status, 400);
+  assert.equal(
+    (await (await fetch(url, { headers: { Cookie: cookie } })).json()).previewAvailable,
+    false,
+  );
   assert.equal((await fetch(`${url}/download`)).status, 401);
+});
+test('legacy preview pages redirect to the default sharing page', async (t) => {
+  const { base } = await fixture(t);
+  const file = await (await upload(base)).json();
+  const response = await fetch(`${base}/f/${file.id}/preview`, { redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), `/f/${file.id}`);
 });
 test('password guesses are rate limited', async (t) => {
   const { base } = await fixture(t);

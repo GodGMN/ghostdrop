@@ -179,6 +179,33 @@ footer {
   min-width: 0;
   flex: 1;
 }
+.file-glyph {
+  width: 34px;
+  height: 42px;
+}
+.file-icon.has-thumbnail {
+  width: 68px;
+  height: 68px;
+  overflow: hidden;
+  border-color: var(--line);
+}
+.file-icon.has-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.receipt-file,
+.shared-file {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 0;
+}
+.shared-file h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
 .file-name {
   font-weight: 600;
   overflow-wrap: anywhere;

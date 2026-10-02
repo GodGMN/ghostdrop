@@ -1,3 +1,5 @@
+import { fileIcon, localThumbnail } from './file-visual.js';
+
 export const main = document.querySelector('#main');
 export const escapeHtml = (value) =>
   String(value).replace(
@@ -30,16 +32,19 @@ export async function api(path, options = {}) {
 
 const landing = main.innerHTML;
 let selected;
+let disposeThumbnail = () => {};
 function reset() {
+  disposeThumbnail();
   selected = undefined;
   main.innerHTML = landing;
   wirePicker();
 }
 function choose(file) {
   if (!file) return;
+  disposeThumbnail();
   selected = file;
   main.innerHTML = `<form id="upload-form" class="card">
-    <div class="file-row"><span class="file-icon" aria-hidden="true">↗</span><div class="file-info"><p class="file-name">${escapeHtml(file.name)}</p><span class="file-size">${bytes(file.size)} · ready to upload</span><button class="change-file" type="button" id="replace">Choose another file</button><input id="replace-picker" type="file" class="visually-hidden" aria-label="Replace selected file"></div><button class="icon-button" type="button" id="remove" aria-label="Remove selected file">×</button></div>
+    <div class="file-row"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><div class="file-info"><p class="file-name">${escapeHtml(file.name)}</p><span class="file-size">${bytes(file.size)} · ready to upload</span><button class="change-file" type="button" id="replace">Choose another file</button><input id="replace-picker" type="file" class="visually-hidden" aria-label="Replace selected file"></div><button class="icon-button" type="button" id="remove" aria-label="Remove selected file">×</button></div>
     <div class="form-grid">
       <label class="field">Password <span class="muted">Optional</span><input name="password" type="password" autocomplete="new-password" maxlength="256" placeholder="Only people with the password can download"><small>Protects access to the file. Does not encrypt it.</small></label>
       <label class="field">Keep it for<select name="expiration"><option value="hour">One hour</option><option value="day">One day</option><option value="week">One week</option><option value="month" selected>One month</option></select></label>
@@ -48,6 +53,7 @@ function choose(file) {
     <p class="small-note">Your file stays on this device until you click Upload.</p>
     <div id="upload-progress"></div>
   </form><p id="status" class="status" role="status" aria-live="polite"></p>`;
+  disposeThumbnail = localThumbnail(document.querySelector('.file-icon'), file);
   document.querySelector('#remove').onclick = reset;
   document.querySelector('#replace').onclick = () =>
     document.querySelector('#replace-picker').click();
@@ -56,10 +62,11 @@ function choose(file) {
     event.preventDefault();
     const form = event.currentTarget;
     const { upload } = await import('./upload.js');
-    upload(selected, form);
+    upload(selected, form, disposeThumbnail);
   };
   document.querySelector('#remove').focus();
 }
+window.addEventListener('pagehide', () => disposeThumbnail());
 function wirePicker() {
   const picker = document.querySelector('#file-picker');
   picker.onchange = () => choose(picker.files[0]);

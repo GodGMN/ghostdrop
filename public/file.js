@@ -1,9 +1,9 @@
 import { main, escapeHtml, bytes, date, status, api } from './app.js';
+import { fileIcon } from './file-visual.js';
 
 export async function initFile() {
   const id = location.pathname.split('/')[2];
   const deleting = location.pathname.startsWith('/delete/');
-  const preview = location.pathname.endsWith('/preview');
   const direct = location.pathname.endsWith('/direct');
   const base = `/api/files/${encodeURIComponent(id)}`;
   const deletionToken = location.hash.slice(1);
@@ -28,7 +28,7 @@ export async function initFile() {
     main.innerHTML = `<section class="card"><p class="eyebrow">Gone for good</p><h1>File unavailable.</h1><p class="muted">${escapeHtml(message)}</p><a class="button full" href="/">Share a new file</a></section>`;
   }
   function render(file) {
-    main.innerHTML = `<section class="card"><p class="eyebrow">${deleting ? 'Private deletion link' : 'A little something for you'}</p><h1>${escapeHtml(file.name)}</h1><p class="muted">${bytes(file.size)} · Expires ${date(file.expiresAt)}</p>${file.oneTime ? '<p class="small-note">One-time file. Starting the download deletes the stored file, even if the transfer is interrupted.</p>' : ''}<div id="file-action"></div></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
+    main.innerHTML = `<section class="card"><p class="eyebrow">${deleting ? 'Private deletion link' : 'A little something for you'}</p><div class="shared-file"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><h1>${escapeHtml(file.name)}</h1></div><p class="muted">${bytes(file.size)} · Expires ${date(file.expiresAt)}</p>${file.oneTime ? '<p class="small-note">One-time file. Starting the download deletes the stored file, even if the transfer is interrupted.</p>' : ''}<div id="file-action"></div></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
     const action = document.querySelector('#file-action');
     if (deleting) {
       action.innerHTML =
@@ -68,7 +68,7 @@ export async function initFile() {
         }
       };
     } else {
-      action.innerHTML = `<div class="actions"><a class="button" id="download" href="${base}/download">Download file ↓</a>${file.previewAvailable && !preview ? `<a class="button secondary" href="/f/${id}/preview">Preview</a>` : ''}</div>`;
+      action.innerHTML = `<div class="actions"><a class="button" id="download" href="${base}/download">Download file ↓</a></div>`;
       document.querySelector('#download').onclick = () => {
         if (file.oneTime)
           setTimeout(
@@ -76,8 +76,8 @@ export async function initFile() {
             1000,
           );
       };
-      if (preview && file.previewAvailable) showPreview(file);
-      else if (preview) status('Preview is not available for this file.', true);
+      if (!direct && file.previewAvailable) showPreview(file);
+      else if (file.passwordProtected) status('Preview is disabled for password-protected files.');
       if (direct) document.querySelector('#download').click();
     }
   }
