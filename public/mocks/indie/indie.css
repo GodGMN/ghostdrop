@@ -1,0 +1,1028 @@
+/* Shared anatomy: a small file utility, no marketing section. */
+.indie {
+  --paper: #e6e5df;
+  --text: #30322f;
+  --quiet: #62665a;
+  --rule: #bdc0b5;
+  --accent: #b99c43;
+  --well: #dcded5;
+  --button: #30322f;
+  --button-text: #ecece5;
+  color: var(--text);
+  background: var(--paper);
+  min-height: 680px;
+  overflow: hidden;
+  border: 1px solid #0001;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.indie-page {
+  min-height: 680px;
+  max-width: 880px;
+  margin: auto;
+  padding: 54px 68px 32px;
+  display: flex;
+  flex-direction: column;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 16px;
+}
+.identity a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+.identity-mark {
+  width: 17px;
+  height: 22px;
+}
+.identity-mark svg,
+.tiny-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.wordmark {
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+.wordmark-end {
+  font-size: 15px;
+  color: var(--accent);
+  margin-left: 3px;
+}
+.identity-caption {
+  font-size: 10px;
+  color: var(--quiet);
+}
+.registration {
+  display: none;
+}
+.workspace {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 54px 0;
+}
+.tool {
+  width: 100%;
+  max-width: 470px;
+  min-width: 0;
+}
+.margin-note {
+  display: none;
+}
+.section-label {
+  font-family: 'Courier New', monospace;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--quiet);
+  padding-bottom: 15px;
+}
+.tiny-mark {
+  width: 12px;
+  height: 16px;
+  display: none;
+}
+.file-well {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  width: 100%;
+  background: var(--well);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  gap: 10px;
+  border-radius: 0;
+}
+.file-symbol {
+  width: 40px;
+  height: 49px;
+  margin-bottom: 13px;
+  color: var(--quiet);
+}
+.file-symbol svg {
+  width: 100%;
+  height: 100%;
+}
+.file-well strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+.file-well > span:last-child {
+  color: var(--quiet);
+  font-size: 11px;
+}
+.file-well u {
+  text-underline-offset: 3px;
+}
+.well-foot {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  color: var(--quiet);
+  padding-top: 12px;
+}
+.utility-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 25px;
+  font-size: 9px;
+  color: var(--quiet);
+  border-top: 1px solid var(--rule);
+  padding-top: 14px;
+  line-height: 1.6;
+}
+.utility-footer a {
+  color: var(--quiet);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.file-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 0;
+  border-block: 1px solid var(--rule);
+}
+.file-thumb {
+  width: 59px;
+  height: 66px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.file-thumb svg,
+.actual-preview svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.file-row strong {
+  font-size: 13px;
+  font-weight: 500;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.file-row span {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--quiet);
+  display: block;
+  margin-top: 7px;
+}
+.plain {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  padding: 6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.file-row > button {
+  margin-left: auto;
+  text-decoration: none;
+  font-size: 20px;
+}
+.file-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  padding: 24px 0;
+}
+.file-options label {
+  font-size: 10px;
+  color: var(--quiet);
+}
+.file-options select,
+.file-options input:not([type='checkbox']) {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  font-size: 11px;
+  border: 1px solid var(--rule);
+  color: var(--text);
+  background: var(--paper);
+  margin-top: 8px;
+  border-radius: 0;
+}
+.file-options .check {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.file-options input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+.send-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--rule);
+  padding-top: 17px;
+  gap: 12px;
+}
+.send-row > span {
+  font-family: 'Courier New', monospace;
+  color: var(--quiet);
+  font-size: 9px;
+}
+.solid {
+  background: var(--button);
+  color: var(--button-text);
+  border: 1px solid var(--button);
+  padding: 10px 17px;
+  border-radius: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.share-view .section-label {
+  font-size: 9px;
+}
+.actual-preview {
+  height: 240px;
+  overflow: hidden;
+  background: var(--well);
+}
+.download-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+}
+.download-row h2 {
+  font:
+    500 14px Arial,
+    sans-serif;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.download-row p {
+  font:
+    10px 'Courier New',
+    monospace;
+  color: var(--quiet);
+  margin: 7px 0 0;
+}
+.share-address {
+  border-block: 1px solid var(--rule);
+  padding: 15px 0;
+}
+.share-address label {
+  font-size: 9px;
+  color: var(--quiet);
+}
+.share-address > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 5px;
+}
+.share-address code {
+  font:
+    11px 'Courier New',
+    monospace;
+  overflow-wrap: anywhere;
+}
+.file-lifetime {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font:
+    9px 'Courier New',
+    monospace;
+  color: var(--quiet);
+  margin-top: 14px;
+  align-items: flex-start;
+}
+.file-lifetime details {
+  color: var(--quiet);
+  font-size: 9px;
+  text-align: right;
+}
+.file-lifetime details > div {
+  display: grid;
+  margin-top: 10px;
+}
+.file-lifetime .plain {
+  font-size: 9px;
+}
+.admin-view {
+  width: 100%;
+}
+.state-admin .tool {
+  max-width: 640px;
+}
+.admin-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 0;
+  border-top: 1px solid var(--rule);
+}
+.admin-tools input {
+  padding: 9px 0;
+  color: var(--text);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  width: 180px;
+  font-size: 11px;
+  border-radius: 0;
+}
+.sr-label {
+  position: absolute;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.file-table {
+  overflow-x: auto;
+}
+.indie table {
+  min-width: 470px;
+}
+.indie th {
+  color: var(--quiet);
+  border-color: var(--rule);
+  font:
+    9px 'Courier New',
+    monospace;
+  padding: 12px 7px;
+}
+.indie td {
+  color: var(--text);
+  border-color: var(--rule);
+  font-size: 10px;
+  padding: 13px 7px;
+}
+.indie td:first-child {
+  font-weight: 400;
+}
+.indie td button {
+  color: var(--quiet);
+  text-decoration: none;
+  font-size: 17px;
+}
+.table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  font:
+    9px 'Courier New',
+    monospace;
+  color: var(--quiet);
+}
+.mock-status {
+  font-size: 10px;
+  color: var(--text);
+  min-height: 16px;
+  margin-top: 12px;
+}
+/* Workbench: a compact, offset instrument with an ochre tab. */
+.workbench .indie-page {
+  padding-top: 70px;
+  max-width: 750px;
+}
+.workbench .identity {
+  position: relative;
+}
+.workbench .identity::before {
+  content: '';
+  width: 40px;
+  height: 4px;
+  position: absolute;
+  top: -15px;
+  background: var(--accent);
+}
+.workbench .wordmark {
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  letter-spacing: -1.5px;
+  font-weight: 700;
+}
+.workbench .tool {
+  max-width: 440px;
+}
+.workbench .file-well {
+  border-top: 3px solid var(--accent);
+}
+.workbench .section-label {
+  text-transform: lowercase;
+}
+.workbench .solid {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #272b25;
+}
+.swatch-workbench {
+  background: #b99c43;
+}
+/* Colophon: typography and the scale of a small printed folio. */
+.colophon {
+  --paper: #faf8f1;
+  --text: #282725;
+  --quiet: #68645a;
+  --rule: #c9c4b8;
+  --well: transparent;
+  --accent: #282725;
+  --button: #282725;
+  --button-text: #faf8f1;
+}
+.colophon .indie-page {
+  max-width: 660px;
+  padding: 62px 60px 30px;
+}
+.colophon .identity {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  border-color: var(--text);
+  padding-bottom: 22px;
+}
+.colophon .identity a {
+  width: 100%;
+  justify-content: center;
+}
+.colophon .wordmark {
+  font:
+    48px Georgia,
+    serif;
+  letter-spacing: -2px;
+}
+.colophon .identity-mark,
+.colophon .wordmark-end {
+  display: none;
+}
+.colophon .identity-caption {
+  font:
+    italic 11px Georgia,
+    serif;
+}
+.colophon .workspace {
+  padding: 45px 0;
+}
+.colophon .tool {
+  max-width: 390px;
+}
+.colophon .file-well {
+  border: none;
+  border-block: 1px solid var(--rule);
+  min-height: 180px;
+}
+.colophon .file-well strong {
+  font:
+    21px Georgia,
+    serif;
+}
+.colophon .file-symbol {
+  width: 29px;
+  height: 35px;
+  margin-bottom: 5px;
+}
+.colophon .section-label {
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+.colophon .utility-footer {
+  flex-direction: column;
+  text-align: center;
+  gap: 5px;
+  border-top: 1px solid var(--text);
+}
+.colophon .file-row strong,
+.colophon .download-row h2 {
+  font:
+    17px Georgia,
+    serif;
+}
+.swatch-colophon {
+  background: #8c8474;
+}
+/* Spool: a file tray with a blue tab and exposed square edges. */
+.spool {
+  --paper: #dce1e3;
+  --text: #283c48;
+  --quiet: #4e6572;
+  --rule: #aab9c1;
+  --accent: #3c6983;
+  --well: #e8edef;
+  --button: #3c6983;
+  --button-text: #f0f4f5;
+}
+.spool .indie-page {
+  padding: 40px 55px 30px;
+}
+.spool .identity {
+  border: 0;
+}
+.spool .wordmark {
+  font-weight: 400;
+  font-size: 27px;
+  letter-spacing: -1.5px;
+}
+.spool .identity-mark {
+  display: none;
+}
+.spool .wordmark-end {
+  font-family: monospace;
+  margin-left: 5px;
+}
+.spool .tool {
+  max-width: 520px;
+}
+.spool .transfer {
+  position: relative;
+  padding: 24px;
+  border: 1px solid var(--rule);
+  background: #edf1f1;
+}
+.spool .transfer::before {
+  content: 'FILE / 01';
+  display: block;
+  position: absolute;
+  left: -1px;
+  top: -26px;
+  height: 26px;
+  padding: 8px 18px;
+  background: var(--accent);
+  color: #fff;
+  font:
+    9px 'Courier New',
+    monospace;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+}
+.spool .file-well {
+  min-height: 175px;
+  align-items: flex-start;
+  padding: 32px 28px 32px 96px;
+  position: relative;
+  gap: 8px;
+}
+.spool .file-symbol {
+  position: absolute;
+  left: 29px;
+  top: 62px;
+  width: 33px;
+  height: 39px;
+}
+.spool .file-well strong {
+  font-size: 16px;
+}
+.spool .file-well > span:last-child {
+  font-size: 10px;
+}
+.spool .section-label {
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 20px;
+}
+.spool .tiny-mark {
+  display: block;
+}
+.spool .utility-footer {
+  border: 0;
+}
+.swatch-spool {
+  background: #3c6983;
+}
+/* Notice: a narrow printed notice, anchored by one yellow label. */
+.notice {
+  --paper: #e5e2d9;
+  --text: #242421;
+  --quiet: #59594f;
+  --rule: #bbb8aa;
+  --well: #f3f0e5;
+  --accent: #ddd365;
+  --button: #242421;
+  --button-text: #f3f0e5;
+}
+.notice .indie-page {
+  max-width: 490px;
+  min-height: 570px;
+  margin: 55px auto;
+  padding: 30px;
+  background: #f3f0e5;
+  border: 1px solid #bab7aa;
+}
+.notice .identity {
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 2px solid var(--text);
+}
+.notice .identity a {
+  width: 100%;
+}
+.notice .wordmark {
+  font-family: Impact, 'Arial Narrow', sans-serif;
+  font-size: 46px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.notice .identity-mark,
+.notice .wordmark-end {
+  display: none;
+}
+.notice .identity-caption {
+  padding: 5px 8px;
+  color: #242421;
+  background: var(--accent);
+  text-transform: uppercase;
+  font:
+    9px 'Courier New',
+    monospace;
+}
+.notice .registration {
+  display: block;
+  margin-left: auto;
+  font:
+    9px 'Courier New',
+    monospace;
+}
+.notice .workspace {
+  padding: 32px 0;
+}
+.notice .file-well {
+  border: 1px dashed #929183;
+  min-height: 190px;
+}
+.notice .file-symbol {
+  width: 30px;
+  height: 38px;
+  margin-bottom: 6px;
+}
+.notice .utility-footer {
+  display: block;
+  font:
+    9px/1.6 'Courier New',
+    monospace;
+  border-top: 2px solid var(--text);
+}
+.notice .utility-footer a {
+  display: block;
+  margin-top: 8px;
+}
+.notice .actual-preview {
+  height: 220px;
+}
+.notice.state-admin .indie-page {
+  max-width: 700px;
+}
+.swatch-notice {
+  background: #ddd365;
+}
+/* Nightshift: a low-contrast dark utility with one registration mark. */
+.nightshift {
+  --paper: #202121;
+  --text: #d9d8d2;
+  --quiet: #9a9c94;
+  --rule: #4b4c47;
+  --well: #252626;
+  --accent: #b56e55;
+  --button: #cccac0;
+  --button-text: #252626;
+}
+.nightshift .indie-page {
+  max-width: 820px;
+  padding-top: 60px;
+}
+.nightshift .wordmark {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 31px;
+  letter-spacing: -1px;
+}
+.nightshift .identity-mark {
+  display: none;
+}
+.nightshift .wordmark-end {
+  font-size: 22px;
+}
+.nightshift .identity {
+  border: 0;
+}
+.nightshift .file-well {
+  align-items: flex-start;
+  padding: 35px;
+  gap: 12px;
+  min-height: 210px;
+  border-color: #55564e;
+}
+.nightshift .file-symbol {
+  width: 30px;
+  height: 37px;
+  margin-bottom: 6px;
+}
+.nightshift .file-well strong {
+  font-size: 17px;
+}
+.nightshift .section-label {
+  font-size: 9px;
+}
+.nightshift .utility-footer {
+  border: 0;
+}
+.nightshift.state-share .tool {
+  max-width: 600px;
+}
+.nightshift .actual-preview {
+  height: 310px;
+}
+.nightshift .solid {
+  font-weight: 500;
+}
+.swatch-nightshift {
+  background: #b56e55;
+}
+/* Fieldnotes: a practical notebook margin, not a marketing layout. */
+.fieldnotes {
+  --paper: #f0eee1;
+  --text: #414939;
+  --quiet: #626b55;
+  --rule: #c3c7b1;
+  --well: #e3e5d5;
+  --accent: #6c7652;
+  --button: #616d4b;
+  --button-text: #f4f2e5;
+}
+.fieldnotes .indie-page {
+  padding-inline: 48px;
+}
+.fieldnotes .identity {
+  margin-left: 120px;
+}
+.fieldnotes .wordmark {
+  font:
+    italic 29px Georgia,
+    serif;
+  letter-spacing: -1px;
+}
+.fieldnotes .identity-mark,
+.fieldnotes .wordmark-end {
+  display: none;
+}
+.fieldnotes .identity-caption {
+  display: none;
+}
+.fieldnotes .registration {
+  display: block;
+  font:
+    9px 'Courier New',
+    monospace;
+}
+.fieldnotes .workspace {
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 50px 0;
+}
+.fieldnotes .margin-note {
+  display: flex;
+  flex-direction: column;
+  width: 120px;
+  flex-shrink: 0;
+  padding: 20px 18px 0 0;
+}
+.note-number {
+  font:
+    italic 27px Georgia,
+    serif;
+  color: var(--quiet);
+}
+.margin-note p {
+  white-space: pre-line;
+  font:
+    italic 11px/1.7 Georgia,
+    serif;
+  color: var(--quiet);
+}
+.margin-tick {
+  color: var(--quiet);
+  margin-top: auto;
+  font:
+    15px 'Courier New',
+    monospace;
+}
+.fieldnotes .tool {
+  align-self: center;
+  border-left: 1px solid var(--rule);
+  padding-left: 25px;
+}
+.fieldnotes .file-well {
+  min-height: 235px;
+  border: none;
+  border-block: 1px solid var(--rule);
+}
+.fieldnotes .file-well strong {
+  font:
+    19px Georgia,
+    serif;
+}
+.fieldnotes .section-label {
+  font-family: Georgia, serif;
+}
+.fieldnotes .utility-footer {
+  margin-left: 120px;
+}
+.swatch-fieldnotes {
+  background: #6c7652;
+}
+.focused .indie {
+  min-height: calc(100svh - 58px);
+  border: 0;
+}
+.focused .indie-page {
+  min-height: calc(100svh - 58px);
+}
+.focused .notice .indie-page {
+  min-height: 570px;
+}
+@media (max-width: 1100px) {
+  .indie-page {
+    padding-inline: 35px;
+  }
+  .colophon .indie-page {
+    padding-inline: 40px;
+  }
+  .fieldnotes .indie-page {
+    padding-inline: 30px;
+  }
+}
+@media (max-width: 560px) {
+  .indie-page,
+  .colophon .indie-page,
+  .spool .indie-page,
+  .fieldnotes .indie-page {
+    padding: 34px 24px 22px;
+    min-height: 610px;
+  }
+  .identity {
+    gap: 12px;
+  }
+  .identity-caption {
+    font-size: 8px;
+  }
+  .wordmark {
+    font-size: 21px;
+  }
+  .workspace {
+    padding: 35px 0;
+  }
+  .file-well {
+    min-height: 205px;
+  }
+  .utility-footer {
+    flex-direction: column;
+    gap: 8px;
+    font-size: 9px;
+  }
+  .colophon .wordmark {
+    font-size: 43px;
+  }
+  .spool .transfer {
+    padding: 18px;
+  }
+  .spool .file-well {
+    padding: 25px 15px;
+    align-items: center;
+    min-height: 195px;
+  }
+  .spool .file-symbol {
+    position: static;
+    margin-bottom: 10px;
+  }
+  .spool .section-label {
+    margin-bottom: 15px;
+  }
+  .notice .indie-page {
+    margin: 28px 18px;
+    padding: 25px 22px;
+    min-height: 560px;
+  }
+  .notice .wordmark {
+    font-size: 40px;
+  }
+  .notice .identity-caption {
+    font-size: 8px;
+  }
+  .notice .actual-preview {
+    height: 175px;
+  }
+  .nightshift .actual-preview {
+    height: 230px;
+  }
+  .fieldnotes .identity {
+    margin-left: 0;
+  }
+  .fieldnotes .margin-note {
+    width: 42px;
+    padding-right: 12px;
+  }
+  .fieldnotes .margin-note p,
+  .fieldnotes .margin-tick {
+    display: none;
+  }
+  .fieldnotes .tool {
+    padding-left: 15px;
+  }
+  .fieldnotes .utility-footer {
+    margin-left: 0;
+  }
+  .fieldnotes .file-well strong {
+    font-size: 17px;
+  }
+  .fieldnotes .well-foot {
+    flex-direction: column;
+    gap: 5px;
+  }
+  .file-options {
+    gap: 14px 10px;
+  }
+  .file-options input:not([type='checkbox']),
+  .file-options select {
+    padding: 8px;
+  }
+  .file-row {
+    gap: 10px;
+  }
+  .file-thumb {
+    width: 45px;
+    height: 54px;
+  }
+  .file-row strong {
+    font-size: 11px;
+  }
+  .file-row span {
+    font-size: 9px;
+  }
+  .file-options .check {
+    font-size: 9px;
+  }
+  .solid {
+    padding: 10px 12px;
+    font-size: 10px;
+  }
+  .send-row > span {
+    font-size: 8px;
+  }
+  .share-view .section-label {
+    font-size: 8px;
+    gap: 8px;
+  }
+  .actual-preview {
+    height: 205px;
+  }
+  .download-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .download-row h2 {
+    font-size: 13px;
+  }
+  .share-address code {
+    font-size: 10px;
+  }
+  .file-lifetime {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .file-lifetime details {
+    text-align: left;
+  }
+  .admin-tools input {
+    width: 135px;
+  }
+  .admin-tools .plain {
+    font-size: 9px;
+  }
+  .state-admin .workspace {
+    min-width: 0;
+  }
+  .fieldnotes.state-admin .margin-note {
+    display: none;
+  }
+  .fieldnotes.state-admin .tool {
+    padding-left: 0;
+    border: 0;
+  }
+  .focused .indie-page {
+    min-height: calc(100svh - 110px);
+  }
+}
