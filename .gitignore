@@ -1,0 +1,4 @@
+# Project-local MCP configurations contain a personal Runewire API key.
+/.codex/config.toml
+/.mcp.json
+/opencode.json
