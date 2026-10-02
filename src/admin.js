@@ -74,7 +74,11 @@ export function registerAdminRoutes(app, store, requireAdmin, runCleanup) {
     }
     res.json({
       count,
-      storedBytes: await diskBytes(store.filesDir),
+      storedBytes:
+        (await diskBytes(store.filesDir)) +
+        store.db
+          .prepare("SELECT coalesce(sum(size), 0) AS bytes FROM files WHERE storage_backend = 's3'")
+          .get().bytes,
       partialBytes: await diskBytes(store.partialDir),
     });
   });

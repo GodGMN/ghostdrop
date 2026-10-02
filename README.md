@@ -39,6 +39,8 @@ One-time files are claimed atomically when a download is accepted. The stored fi
 
 SQLite metadata and uploaded files live in `DATA_DIR` (default `./data`), outside the public directory. Preserve this directory across restarts. The default upload limit is 100 MiB. Configure `MAX_FILE_BYTES` to change it.
 
+With `STORAGE_BACKEND=s3`, finalized file bytes go to S3-compatible storage instead. SQLite and resumable upload staging still live in `DATA_DIR`, which must remain persistent.
+
 Runewire tracks the MVP tasks. See [AGENTS.md](AGENTS.md) for the workflow. Personal MCP credentials and `.env` are gitignored.
 
 Expiry blocks new access immediately. A cleanup loop physically removes expired files at startup and every minute, retries pending deletions, removes orphaned completed uploads, and expires upload sessions after one hour without an acknowledged chunk. Expiring a completed session only removes its cached receipt; the shared file keeps its own expiration. An already-open download can finish after expiry. The process must be running for background cleanup to run.
@@ -59,16 +61,25 @@ The panel lists files with size, content type, hash, creation and expiration dat
 
 ## Configuration
 
-| Variable              | Default                 | Purpose                                                |
-| --------------------- | ----------------------- | ------------------------------------------------------ |
-| `PORT`                | `3000`                  | HTTP port                                              |
-| `HOST`                | `127.0.0.1`             | Listen address; use `0.0.0.0` for LAN/container access |
-| `PUBLIC_ORIGIN`       | `http://localhost:3000` | Exact browser origin allowed for mutating requests     |
-| `DATA_DIR`            | `./data`                | Private database and upload storage                    |
-| `MAX_FILE_BYTES`      | `104857600`             | Maximum size of a single file, in bytes                |
-| `ADMIN_PASSWORD_HASH` | Empty                   | Generated scrypt hash; empty disables admin            |
-| `COOKIE_SECURE`       | `false`                 | Set `true` when serving through HTTPS                  |
-| `CLEANUP_INTERVAL_MS` | `60000`                 | Background cleanup interval                            |
+| Variable               | Default                 | Purpose                                                |
+| ---------------------- | ----------------------- | ------------------------------------------------------ |
+| `PORT`                 | `3000`                  | HTTP port                                              |
+| `HOST`                 | `127.0.0.1`             | Listen address; use `0.0.0.0` for LAN/container access |
+| `PUBLIC_ORIGIN`        | `http://localhost:3000` | Exact browser origin allowed for mutating requests     |
+| `DATA_DIR`             | `./data`                | Private database and upload storage                    |
+| `MAX_FILE_BYTES`       | `104857600`             | Maximum size of a single file, in bytes                |
+| `ADMIN_PASSWORD_HASH`  | Empty                   | Generated scrypt hash; empty disables admin            |
+| `COOKIE_SECURE`        | `false`                 | Set `true` when serving through HTTPS                  |
+| `CLEANUP_INTERVAL_MS`  | `60000`                 | Background cleanup interval                            |
+| `STORAGE_BACKEND`      | `local`                 | Finalized file storage: `local` or `s3`                |
+| `S3_ENDPOINT`          | AWS default             | S3 API origin, e.g. the MinIO endpoint                 |
+| `S3_BUCKET`            | Required for S3         | Existing private bucket                                |
+| `S3_REGION`            | `us-east-1`             | Bucket signing region                                  |
+| `S3_PREFIX`            | `ghostdrop/`            | Reserved key prefix; must end with `/`                 |
+| `S3_FORCE_PATH_STYLE`  | `true`                  | Path-style addressing for MinIO                        |
+| `S3_ACCESS_KEY_ID`     | SDK credential chain    | Server-side access key ID                              |
+| `S3_SECRET_ACCESS_KEY` | SDK credential chain    | Server-side secret access key                          |
+| `S3_SESSION_TOKEN`     | Empty                   | Optional temporary AWS credential token                |
 
 For deployment, run `npm ci --omit=dev` and `npm start`, mount persistent private storage, and put the service behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
 
@@ -102,6 +113,51 @@ docker run --rm -it --entrypoint node ghostdrop scripts/hash-password.js
 
 Set the resulting hash as `ADMIN_PASSWORD_HASH` when starting the server. Admin access remains disabled without it.
 
+### S3 and MinIO
+
+Create a private bucket dedicated to Ghostdrop, with versioning **never enabled** and no object retention. Ghostdrop checks the bucket at startup and rejects enabled or suspended versioning. Ordinary deletes in versioned buckets can retain object bytes as older versions, which conflicts with one-time and expiration deletion. See the [S3 DeleteObject documentation](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html).
+
+Copy `.env.example` to a private environment file and set:
+
+```dotenv
+STORAGE_BACKEND=s3
+S3_ENDPOINT=https://your-minio-api.example.com
+S3_BUCKET=ghostdrop
+S3_REGION=us-east-1
+S3_PREFIX=ghostdrop/
+S3_FORCE_PATH_STYLE=true
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+PUBLIC_ORIGIN=https://your-ghostdrop.example.com
+COOKIE_SECURE=true
+```
+
+Use the MinIO **S3 API** endpoint, usually port 9000, rather than the console on port 9001. Keep keys server-side; the public configuration endpoint and receipts never expose them. The app also accepts the SDK's default credential chain when the explicit S3 key pair is omitted, for example an AWS workload role.
+
+For Docker, pass the private file with `--env-file /path/to/ghostdrop.env` and retain `-v ghostdrop-data:/app/data`. Omit `DATA_DIR` from that environment file or set it to `/app/data`. Credentials should permit these operations on the bucket and the reserved `ghostdrop/` object prefix, including its ownership marker:
+
+- Bucket: `s3:ListBucket`, `s3:GetBucketVersioning`, `s3:ListBucketMultipartUploads`.
+- Objects: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:AbortMultipartUpload`, `s3:ListMultipartUploadParts`.
+
+Browsers continue sending 512 KiB chunks to Ghostdrop. Chunks are acknowledged only after durable local staging. Finalization streams the assembled file into S3 using multipart uploads with one part in flight, then commits its metadata and removes the local staging copy. Ordinary downloads and previews stream through Ghostdrop, preserving the same-origin routes and access controls. No public bucket, browser S3 credentials, presigned URLs or S3 CORS configuration are needed.
+
+For one-time files, Ghostdrop streams the object to a temporary private local file, opens and unlinks that file, atomically claims the record, deletes the S3 object, then serves the open descriptor. The download begins only after remote deletion succeeds. This adds a full-file read and local staging delay to one-time downloads. Failed deletion leaves an inaccessible record that cleanup retries. Password-protected and one-time objects never receive previews.
+
+Startup recovers interrupted finalization and temporary downloads. Cleanup removes expired/deleting objects, unreferenced object keys in the reserved prefix and abandoned multipart uploads older than one hour. Failed uploads automatically abort multipart transfers where possible. Reserve the prefix for **one Ghostdrop deployment**, preserve its SQLite metadata, and keep the endpoint, bucket and prefix stable. An ownership marker ties the prefix to its SQLite data volume. Startup refuses a different or empty database against an owned prefix, so it cannot clean another instance's files as orphans. Do not delete or overwrite this marker. Back up the database and object storage consistently.
+
+Enabling S3 changes where **new** files are stored. Existing local files keep their backend metadata and remain readable; no automatic migration or deletion takes place. Disabling S3 or changing the bucket while remote records exist causes startup to fail. `DATA_DIR` still needs enough space for concurrent full-size uploads and temporary one-time downloads. Admin storage totals include local and remote finalized files.
+
+To run the optional integration suite against a disposable MinIO/S3 endpoint:
+
+```sh
+TEST_S3_ENDPOINT=http://127.0.0.1:9000 \
+TEST_S3_ACCESS_KEY_ID=test-access-key \
+TEST_S3_SECRET_ACCESS_KEY=test-secret-key \
+node --test test/s3.integration.test.js
+```
+
+These tests create and delete temporary buckets and require bucket creation/deletion and versioning-management permissions. Use an isolated test instance. The normal suite skips these integration tests unless `TEST_S3_ENDPOINT` is set.
+
 Password attempt limits use the direct peer IP. Behind a reverse proxy, clients currently share the proxy's rate-limit bucket because forwarded IP headers are not trusted. Limit upload concurrency and total storage at the deployment boundary; this MVP has a per-file limit but no global disk quota. Uploads are public and are not scanned for malware.
 
 ## Chunked uploads
@@ -112,7 +168,7 @@ Each accepted chunk is written to the private partial file and synced before SQL
 
 On a transient failure, the browser checks the server's offset and retries. After automatic retries are exhausted, clicking **Upload file** resumes the same file and settings from the acknowledged offset. The selected file and session credentials stay in the current page's memory. Resume survives a backend restart, but not a page reload or closing the tab. Changing the file or settings starts a new session and discards the previous attempt. Cancellation deletes the session and its bytes, including a completed file whose receipt has not reached the browser.
 
-Finalization runs in the background and the browser polls its status with small requests. It reads the partial file through a bounded stream to calculate SHA-256, then renames the file and commits its metadata and receipt together. A lost finalization response is safe to retry. Startup recovery truncates bytes beyond the recorded offset and rolls an interrupted pre-commit rename back into a resumable partial file.
+Finalization runs in the background and the browser polls its status with small requests. It reads the partial file through a bounded stream to calculate SHA-256, saves it to the configured backend, then commits its metadata and receipt together. Local storage uses a rename; S3 uses a streamed multipart upload. A lost finalization response is safe to retry. Startup recovery truncates bytes beyond the recorded offset and restores interrupted finalization to a resumable partial file.
 
 | Request                                   | Purpose                                                                                                                                                           |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |

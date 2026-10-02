@@ -1,6 +1,6 @@
 import busboy from 'busboy';
 import { createWriteStream } from 'node:fs';
-import { rename, rm, open } from 'node:fs/promises';
+import { rm, open } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -34,7 +34,7 @@ export async function receiveUpload(req, store, config, res) {
   const id = token(),
     deletionToken = token();
   const partial = join(store.partialDir, id);
-  const final = join(store.filesDir, id);
+  const destination = { id, ...store.storage.destination(id) };
   const fields = {};
   let filename,
     size = 0,
@@ -44,6 +44,9 @@ export async function receiveUpload(req, store, config, res) {
   const hash = createHash('sha256');
   const active = (store.activeUploads ||= new Set());
   let parser;
+  let committed = false;
+  let saving = false;
+  const controller = new AbortController();
   try {
     parser = busboy({
       headers: req.headers,
@@ -55,6 +58,7 @@ export async function receiveUpload(req, store, config, res) {
   active.add(id);
   const onAbort = () => {
     aborted = true;
+    controller.abort();
     parser.destroy(httpError(400, 'Upload cancelled.'));
   };
   req.once('aborted', onAbort);
@@ -122,12 +126,13 @@ export async function receiveUpload(req, store, config, res) {
     const passwordHash = fields.password ? await hashPassword(fields.password) : null;
     if (req.aborted || aborted) throw httpError(400, 'Upload cancelled.');
     const mime = await detectType(partial, filename);
-    const now = Date.now();
-    await rename(partial, final);
+    saving = true;
+    await store.storage.save(partial, destination, controller.signal);
     if (aborted) throw httpError(400, 'Upload cancelled.');
+    const now = Date.now();
     store.db
       .prepare(
-        'INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,password_hash,delete_hash,one_time) VALUES(?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,password_hash,delete_hash,one_time,storage_backend,storage_key,storage_bucket) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
       )
       .run(
         id,
@@ -140,7 +145,12 @@ export async function receiveUpload(req, store, config, res) {
         passwordHash,
         digest(deletionToken),
         fields.oneTime === 'true' ? 1 : 0,
+        destination.storage_backend,
+        destination.storage_key,
+        destination.storage_bucket,
       );
+    committed = true;
+    await rm(partial, { force: true });
     return {
       id,
       name: filename,
@@ -154,7 +164,8 @@ export async function receiveUpload(req, store, config, res) {
   } catch (err) {
     parser.destroy();
     await writing;
-    await Promise.all([rm(partial, { force: true }), rm(final, { force: true })]);
+    await rm(partial, { force: true });
+    if (!committed && saving) await store.storage.remove(destination);
     if (!err.status) throw httpError(400, 'Upload could not be completed. Please try again.');
     throw err;
   } finally {

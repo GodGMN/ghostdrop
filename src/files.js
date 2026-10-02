@@ -1,5 +1,3 @@
-import { open } from 'node:fs/promises';
-import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { availableFile, deleteFile } from './lifecycle.js';
 import {
@@ -97,10 +95,13 @@ export async function serveFile(req, res, file, store, type = 'download') {
   if (req.headers.range) throw httpError(416, 'Partial downloads are not supported.');
   if (type === 'preview' && !canPreview(file))
     throw httpError(400, 'Preview is not available for this file.');
-  const handle = await open(join(store.filesDir, file.id), 'r').catch(() => {
-    throw httpError(404, 'This file is no longer available.');
-  });
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  res.once('close', abort);
+  let handle;
   try {
+    handle = await store.storage.open(file, controller.signal);
+    controller.signal.throwIfAborted();
     // The update is atomic across simultaneous requests and SQLite connections.
     const claimed = store.db
       .prepare(
@@ -120,11 +121,12 @@ export async function serveFile(req, res, file, store, type = 'download') {
       'Accept-Ranges': 'none',
     });
     try {
-      await pipeline(handle.createReadStream({ autoClose: false }), res);
+      await pipeline(handle.stream, res, { signal: controller.signal });
     } catch (err) {
       if (!req.aborted && !res.destroyed) throw err;
     }
   } finally {
-    await handle.close();
+    res.removeListener('close', abort);
+    await handle?.close();
   }
 }

@@ -6,7 +6,8 @@ import { cleanupSessions } from './upload-sessions.js';
 export async function deleteFile(store, id) {
   // The state blocks new access even if unlink fails. Cleanup retries later.
   store.db.prepare("UPDATE files SET state = 'deleting' WHERE id = ?").run(id);
-  await rm(join(store.filesDir, id), { force: true });
+  const record = store.db.prepare('SELECT * FROM files WHERE id = ?').get(id);
+  if (record) await store.storage.remove(record);
   store.db.prepare('DELETE FROM files WHERE id = ?').run(id);
 }
 export async function availableFile(store, id) {
@@ -50,5 +51,6 @@ export async function cleanup(store) {
       files++;
     }
   }
+  files += await store.storage.cleanup();
   return { files, partials };
 }

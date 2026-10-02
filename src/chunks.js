@@ -1,4 +1,4 @@
-import { open, rename, rm } from 'node:fs/promises';
+import { open, rm } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { basename, join } from 'node:path';
 import { Writable } from 'node:stream';
@@ -166,8 +166,7 @@ async function appendChunk(store, id, offset, body, signal) {
 }
 async function finalize(store, id, secret, signal) {
   const session = uploadSession(store, id),
-    partial = join(store.partialDir, id),
-    final = join(store.filesDir, id);
+    partial = join(store.partialDir, id);
   store.db
     .prepare(
       "UPDATE upload_sessions SET state = 'finalizing', error = NULL, updated_at = ? WHERE id = ?",
@@ -187,6 +186,8 @@ async function finalize(store, id, secret, signal) {
     );
     const mime = await detectType(partial, session.name);
     signal.throwIfAborted();
+    await store.storage.save(partial, session, signal);
+    signal.throwIfAborted();
     const now = Date.now();
     const file = {
       id,
@@ -197,13 +198,11 @@ async function finalize(store, id, secret, signal) {
       passwordProtected: !!session.password_hash,
       oneTime: !!session.one_time,
     };
-    await rename(partial, final);
-    signal.throwIfAborted();
     store.db.exec('BEGIN IMMEDIATE');
     try {
       store.db
         .prepare(
-          'INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,password_hash,delete_hash,one_time) VALUES(?,?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO files(id,name,mime,size,sha256,created_at,expires_at,password_hash,delete_hash,one_time,storage_backend,storage_key,storage_bucket) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
         )
         .run(
           id,
@@ -216,6 +215,9 @@ async function finalize(store, id, secret, signal) {
           session.password_hash,
           digest(deletionToken(secret, id)),
           session.one_time,
+          session.storage_backend,
+          session.storage_key,
+          session.storage_bucket,
         );
       store.db
         .prepare(
@@ -227,13 +229,14 @@ async function finalize(store, id, secret, signal) {
       store.db.exec('ROLLBACK');
       throw err;
     }
+    await rm(partial, { force: true });
   } catch (err) {
     const current = uploadSession(store, id);
     if (current?.state === 'finalizing') {
-      await recoverSession(store, current);
       store.db
         .prepare('UPDATE upload_sessions SET error = ? WHERE id = ?')
         .run('The file could not be saved. Try again.', id);
+      await recoverSession(store, current);
     }
     if (!signal.aborted) console.error('Upload finalization failed:', err.message);
   }
@@ -306,9 +309,10 @@ export function registerChunkRoutes(app, store, config) {
         throw httpError(400, 'Upload cancelled.');
       }
       const now = Date.now();
+      const destination = store.storage.destination(id);
       store.db
         .prepare(
-          'INSERT INTO upload_sessions(id,token_hash,name,size,password_hash,expiration,one_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO upload_sessions(id,token_hash,name,size,password_hash,expiration,one_time,created_at,updated_at,storage_backend,storage_key,storage_bucket) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
         )
         .run(
           id,
@@ -320,6 +324,9 @@ export function registerChunkRoutes(app, store, config) {
           oneTime ? 1 : 0,
           now,
           now,
+          destination.storage_backend,
+          destination.storage_key,
+          destination.storage_bucket,
         );
       res.status(201).json({ ...summary(uploadSession(store, id), secret), token: secret });
     });

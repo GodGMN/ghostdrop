@@ -19,7 +19,7 @@ export async function fixture(t, overrides = {}) {
     await runtime.close();
     rmSync(dataDir, { recursive: true, force: true });
   });
-  return { ...runtime, base, config };
+  return { ...runtime, base, config, server };
 }
 export async function upload(base, options = {}) {
   const body = new FormData();

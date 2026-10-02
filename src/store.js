@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 export function openStore(dataDir) {
-  for (const dir of [dataDir, join(dataDir, 'files'), join(dataDir, 'partial')]) {
+  for (const dir of [
+    dataDir,
+    join(dataDir, 'files'),
+    join(dataDir, 'partial'),
+    join(dataDir, 'downloads'),
+  ]) {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     chmodSync(dir, 0o700);
   }
@@ -43,12 +48,32 @@ export function openStore(dataDir) {
       error TEXT
     ) STRICT;
     CREATE INDEX IF NOT EXISTS uploads_updated ON upload_sessions(updated_at);
+    CREATE TABLE IF NOT EXISTS storage_namespaces (
+      scope TEXT PRIMARY KEY,
+      owner TEXT NOT NULL
+    ) STRICT;
   `);
+  for (const table of ['files', 'upload_sessions']) {
+    const columns = new Set(
+      db
+        .prepare(`PRAGMA table_info(${table})`)
+        .all()
+        .map((c) => c.name),
+    );
+    for (const [name, definition] of [
+      ['storage_backend', "TEXT NOT NULL DEFAULT 'local'"],
+      ['storage_key', 'TEXT'],
+      ['storage_bucket', 'TEXT'],
+    ])
+      if (!columns.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+  }
   return {
     db,
     dataDir,
     filesDir: join(dataDir, 'files'),
     partialDir: join(dataDir, 'partial'),
+    downloadsDir: join(dataDir, 'downloads'),
+    activeDownloads: new Set(),
     activeUploads: new Set(),
     uploadOperations: new Map(),
   };

@@ -9,9 +9,11 @@ import { registerAdminAuth } from './admin-auth.js';
 import { registerAdminRoutes } from './admin.js';
 import { registerChunkRoutes, CHUNK_BYTES } from './chunks.js';
 import { recoverSessions } from './upload-sessions.js';
+import { createStorage } from './storage.js';
 
 export function createApp(config) {
   const store = openStore(config.dataDir);
+  store.storage = createStorage(store, config);
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -51,16 +53,25 @@ export function createApp(config) {
   registerFileRoutes(app, store, config);
   const requireAdmin = registerAdminAuth(app, config);
   let cleaning;
+  let storageReady = false;
   const runCleanup = () =>
-    (cleaning ||= cleanup(store).finally(() => {
-      cleaning = undefined;
-    }));
+    !storageReady
+      ? Promise.resolve({ files: 0, partials: 0 })
+      : (cleaning ||= cleanup(store).finally(() => {
+          cleaning = undefined;
+        }));
   const cleanupTimer = setInterval(
     () => runCleanup().catch((err) => console.error('Cleanup failed:', err.message)),
     config.cleanupIntervalMs,
   );
   cleanupTimer.unref();
-  const ready = recoverSessions(store).then(() => runCleanup());
+  const ready = store.storage
+    .init()
+    .then(() => recoverSessions(store))
+    .then(() => {
+      storageReady = true;
+      return runCleanup();
+    });
   ready.catch((err) => console.error('Startup cleanup failed:', err.message));
   registerAdminRoutes(app, store, requireAdmin, runCleanup);
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
@@ -78,6 +89,7 @@ export function createApp(config) {
       .status(err.status || 500)
       .json({ error: err.status ? err.message : 'Something went wrong. Please try again.' });
   });
+  let closed = false;
   return {
     app,
     store,
@@ -85,12 +97,15 @@ export function createApp(config) {
     runCleanup,
     requireAdmin,
     close: async () => {
+      if (closed) return;
+      closed = true;
       clearInterval(cleanupTimer);
       for (const operation of store.uploadOperations.values()) operation.controller.abort();
       await Promise.allSettled(
         [...store.uploadOperations.values()].map((operation) => operation.promise),
       );
       await cleaning?.catch(() => {});
+      store.storage.close();
       store.db.close();
     },
   };

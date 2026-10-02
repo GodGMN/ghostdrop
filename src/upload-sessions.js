@@ -7,6 +7,9 @@ export const uploadSession = (store, id) =>
 export async function discardSession(store, id) {
   store.db.prepare("UPDATE upload_sessions SET state = 'cancelled' WHERE id = ?").run(id);
   store.db.prepare("UPDATE files SET state = 'deleting' WHERE id = ?").run(id);
+  const record =
+    store.db.prepare('SELECT * FROM files WHERE id = ?').get(id) || uploadSession(store, id);
+  if (record) await store.storage.remove(record);
   await Promise.all([
     rm(join(store.partialDir, id), { force: true }),
     rm(join(store.filesDir, id), { force: true }),
@@ -22,7 +25,9 @@ export async function recoverSession(store, session) {
       if (err.code === 'ENOENT') return null;
       throw err;
     });
-  if (!(await exists(partial)) && (await exists(final))) await rename(final, partial);
+  if (session.storage_backend === 's3') {
+    if (session.state === 'finalizing') await store.storage.remove(session);
+  } else if (!(await exists(partial)) && (await exists(final))) await rename(final, partial);
   const handle = await open(partial, (await exists(partial)) ? 'r+' : 'wx', 0o600);
   try {
     const size = (await handle.stat()).size;
@@ -40,6 +45,10 @@ export async function recoverSession(store, session) {
 }
 export async function recoverSessions(store) {
   for (const session of store.db
+    .prepare("SELECT id FROM upload_sessions WHERE state = 'complete'")
+    .all())
+    await rm(join(store.partialDir, session.id), { force: true });
+  for (const session of store.db
     .prepare("SELECT * FROM upload_sessions WHERE state IN ('uploading','finalizing')")
     .all())
     await recoverSession(store, session);
@@ -50,9 +59,10 @@ export async function cleanupSessions(store) {
     .prepare("SELECT * FROM upload_sessions WHERE updated_at <= ? OR state = 'cancelled'")
     .all(Date.now() - SESSION_IDLE_MS)) {
     if (store.activeUploads.has(session.id)) continue;
-    if (session.state === 'complete')
+    if (session.state === 'complete') {
+      await rm(join(store.partialDir, session.id), { force: true });
       store.db.prepare('DELETE FROM upload_sessions WHERE id = ?').run(session.id);
-    else {
+    } else {
       await discardSession(store, session.id);
       partials++;
     }
