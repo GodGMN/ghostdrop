@@ -1,0 +1,17 @@
+{
+  "name": "ghostdrop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "node --test",
+    "check": "node --check src/server.js && node --check src/app.js"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "express": "^5.1.0"
+  }
+}
