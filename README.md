@@ -72,6 +72,36 @@ The panel lists files with size, content type, hash, creation and expiration dat
 
 For deployment, run `npm ci --omit=dev` and `npm start`, mount persistent private storage, and put the service behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
 
+### Docker
+
+Build and run the production image:
+
+```sh
+docker build -t ghostdrop .
+docker volume create ghostdrop-data
+docker run -d --name ghostdrop --restart unless-stopped \
+  -p 3090:3000 \
+  -e PUBLIC_ORIGIN=http://localhost:3090 \
+  -v ghostdrop-data:/app/data \
+  ghostdrop
+```
+
+Open `http://localhost:3090`. Change `PUBLIC_ORIGIN` to the exact URL visitors use, including the port if applicable. The frontend and API share container port 3000. The host port can be changed without changing the container port.
+
+The image runs Node 24 as the unprivileged `node` user, installs only production dependencies, and starts Node directly for shutdown signals. Its health check probes `/api/config`. The build context excludes personal MCP configurations, `.env`, Git history, local storage, tests and design mockups.
+
+Keep the `ghostdrop-data` volume when replacing the container. It contains both SQLite metadata and uploaded files. A bind mount needs write permission for UID/GID 1000; a new named volume inherits the image directory's ownership. Back up this data together using a consistent SQLite backup or while the container is stopped.
+
+For HTTPS behind a reverse proxy, publish to loopback with `-p 127.0.0.1:3090:3000`, set `PUBLIC_ORIGIN=https://your-domain.example` and `COOKIE_SECURE=true`. Pass other settings such as `MAX_FILE_BYTES` and `ADMIN_PASSWORD_HASH` with `-e` or a private `--env-file`. Keep the browser chunk protocol's request size in mind when configuring the proxy.
+
+To generate an admin password hash with the image:
+
+```sh
+docker run --rm -it --entrypoint node ghostdrop scripts/hash-password.js
+```
+
+Set the resulting hash as `ADMIN_PASSWORD_HASH` when starting the server. Admin access remains disabled without it.
+
 Password attempt limits use the direct peer IP. Behind a reverse proxy, clients currently share the proxy's rate-limit bucket because forwarded IP headers are not trusted. Limit upload concurrency and total storage at the deployment boundary; this MVP has a per-file limit but no global disk quota. Uploads are public and are not scanned for malware.
 
 ## Chunked uploads

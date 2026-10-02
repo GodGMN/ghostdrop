@@ -1,0 +1,15 @@
+# Only production inputs enter the build context. Personal keys, .env,
+# Git history, dependencies and uploaded files are excluded by default.
+**
+!package.json
+!package-lock.json
+!src/
+!src/**
+!public/
+!public/**
+!scripts/
+!scripts/hash-password.js
+
+# Design explorations are not part of the deployed application.
+public/mocks/
+public/mocks/**
