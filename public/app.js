@@ -32,6 +32,7 @@ export async function api(path, options = {}) {
 
 const landing = main.innerHTML;
 let selected;
+let uploadLimits;
 let disposeThumbnail = () => {};
 function reset() {
   disposeThumbnail();
@@ -68,6 +69,15 @@ function choose(file) {
 }
 window.addEventListener('pagehide', () => disposeThumbnail());
 function wirePicker() {
+  const limitNote = document.querySelector('.drop-note');
+  (uploadLimits ||= api('/api/config'))
+    .then(({ maxFileBytes }) => {
+      limitNote.textContent = `Up to ${bytes(maxFileBytes).replace('.0 ', ' ')} per file.`;
+    })
+    .catch(() => {
+      uploadLimits = undefined;
+      limitNote.textContent = 'Upload limit unavailable. Please refresh.';
+    });
   const picker = document.querySelector('#file-picker');
   picker.onchange = () => choose(picker.files[0]);
   document.querySelector('.drop-target').onkeydown = (event) => {
