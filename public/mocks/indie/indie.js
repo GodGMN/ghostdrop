@@ -1,4 +1,4 @@
-const concepts = [
+const indieConcepts = [
   {
     id: 'workbench',
     name: 'Workbench',
@@ -36,8 +36,31 @@ const concepts = [
     note: 'A practical field notebook. A margin for short annotations, fine rules and an olive file tray. The small asymmetries give it character while the controls stay ordinary.',
   },
 ];
+const original = document.body.dataset.collection === 'original';
+const originalConcepts = [
+  {
+    id: 'inset',
+    name: 'Inset',
+    tag: 'A dark file tray / soft edges',
+    note: 'Keep the original mark and let its rounded shape inform the controls. A solid file tray replaces the dashed outline. Mint is reserved for the file symbol and the primary action. The sharing page puts the preview in the same tray.',
+  },
+  {
+    id: 'open',
+    name: 'Open',
+    tag: 'Heavy type / fewer containers',
+    note: 'The original wordmark sets the typographic weight. The file area is open, with one low divider rather than a card. Strong filenames, plain settings and a large uninterrupted preview make the interface feel like one small purpose-built tool.',
+  },
+  {
+    id: 'ledger',
+    name: 'Ledger',
+    tag: 'Compact rows / quiet structure',
+    note: 'A narrow file slot and clearly separated rows. Mint marks the active action; the rest stays dark and calm. Monospace is used only for file sizes and links. This is the most compact direction and translates directly to the admin list.',
+  },
+];
+const concepts = original ? originalConcepts : indieConcepts;
 const mark = `<svg viewBox="0 0 24 28" fill="none" aria-hidden="true"><path d="M4 24V11a8 8 0 0 1 16 0v13l-4-3-4 3-4-3-4 3Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 10v3m6-3v3" stroke="currentColor" stroke-width="1.7"/></svg>`;
 const fileIcon = `<svg viewBox="0 0 48 58" fill="none" aria-hidden="true"><path d="M8 3h22l11 11v40H8V3Z" stroke="currentColor" stroke-width="1.2"/><path d="M30 3v12h11M17 32h15m-7-7 7 7-7 7" stroke="currentColor" stroke-width="1.2"/></svg>`;
+const originalFileIcon = `<svg viewBox="0 0 48 58" fill="none" aria-hidden="true"><path d="M10 4h20l11 11v35a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z" fill="currentColor"/><path d="M30 4v11h11" stroke="var(--well)" stroke-width="2" stroke-linejoin="round"/><path d="M24 42V27m-7 7 7-7 7 7" stroke="var(--well)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const photograph = `<svg viewBox="0 0 600 420" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Example architectural study of a concrete wall"><path fill="#b7b3a6" d="M0 0h600v420H0z"/><path fill="#ded9c9" d="M0 0h345v420H0z"/><path fill="#303d3b" d="M345 0h255v420H345z"/><path fill="#50605a" d="m345 0 255 140V0z"/><path fill="#a39f8d" d="m0 420 345-140v140z"/><path fill="#ddd6be" d="m0 140 345-75v25L0 165z"/><path stroke="#c8c3b2" d="M115 0v373M230 0v326M0 280h345"/><path stroke="#858d80" d="M425 0v420M505 0v420"/><path fill="#808779" d="M356 300h60v120h-60z"/></svg>`;
 const params = new URLSearchParams(location.search);
 let concept = concepts.find((c) => c.id === params.get('concept')) || concepts[0];
@@ -47,6 +70,8 @@ let state = ['landing', 'selected', 'share', 'admin'].includes(params.get('state
 document.body.classList.toggle('focused', params.get('focus') === '1');
 const canvas = document.querySelector('#canvas');
 function drop() {
+  if (original)
+    return `<button class="file-well" data-action="select"><span class="file-symbol">${originalFileIcon}</span><strong>Drop a file.</strong><span>Or <u>choose one</u> to share.</span></button><div class="well-foot"><span>Nothing uploads until you're ready.</span><span>Up to 100 MB</span></div>`;
   return `<button class="file-well" data-action="select"><span class="file-symbol">${fileIcon}</span><strong>Drop a file here</strong><span>or <u>choose one</u></span></button><div class="well-foot"><span>One file at a time</span><span>100 MB maximum</span></div>`;
 }
 function selected() {
@@ -88,8 +113,21 @@ function render() {
     .forEach((b) => b.setAttribute('aria-pressed', b.dataset.state === state));
   document.querySelector('#isolated').href =
     `?concept=${concept.id}&state=${state}&focus=${document.body.classList.contains('focused') ? '0' : '1'}`;
-  canvas.className = `indie ${concept.id} state-${state}`;
+  canvas.className = `indie ${original ? 'original' : ''} ${concept.id} state-${state}`;
   canvas.innerHTML = `<div class="indie-page"><header class="identity"><a href="#" data-action="home"><span class="identity-mark">${mark}</span><span class="wordmark">ghostdrop</span><span class="wordmark-end">/</span></a><span class="identity-caption">Temporary file sharing</span><span class="registration">GD / 01</span></header><div class="workspace"><aside class="margin-note"><span class="note-number">${state === 'share' ? '02' : state === 'admin' ? '03' : '01'}</span><p>${state === 'share' ? 'Your file.\nA short stay.' : state === 'admin' ? 'A record of\nwhat remains.' : 'A place to leave\nsomething briefly.'}</p><span class="margin-tick">+</span></aside><section class="tool">${state === 'share' ? share() : state === 'admin' ? admin() : transfer()}</section></div><footer class="utility-footer"><span>Upload a file, share its link. Files expire automatically.</span><a href="#" data-action="about">About ghostdrop</a></footer><div class="mock-status" role="status" aria-live="polite"></div></div>`;
+  if (original) {
+    canvas.querySelector('.identity').innerHTML =
+      `<a href="#" data-action="home" class="original-brand"><img src="/ghost.svg" width="44" height="48" alt="" /><span>ghostdrop<span class="original-dot">.</span></span></a>`;
+    canvas.querySelector('.utility-footer').innerHTML =
+      '<span>Drop a file. Share a link. Let it disappear.</span>';
+    const sectionLabel = canvas.querySelector('.section-label > span');
+    sectionLabel.textContent = {
+      landing: 'Choose a file',
+      selected: 'Ready when you are',
+      share: 'Shared file',
+      admin: 'Files',
+    }[state];
+  }
   const url = new URL(location.href);
   url.searchParams.set('concept', concept.id);
   url.searchParams.set('state', state);

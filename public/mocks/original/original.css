@@ -1,0 +1,461 @@
+.original {
+  --paper: #151816;
+  --text: #f0f2e9;
+  --quiet: #a2ada4;
+  --rule: #3c473f;
+  --accent: #cbf3c0;
+  --well: #1e2520;
+  --button: #cbf3c0;
+  --button-text: #18231a;
+  color-scheme: dark;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+.original .indie-page {
+  max-width: 820px;
+  padding: 68px 65px 28px;
+}
+.original .identity {
+  border: 0;
+  justify-content: center;
+  padding: 0;
+}
+.original .original-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -1.6px;
+}
+.original-brand img {
+  flex-shrink: 0;
+}
+.original-dot {
+  color: var(--accent);
+}
+.original .workspace {
+  padding: 45px 0;
+}
+.original .tool {
+  max-width: 500px;
+}
+.original.state-admin .tool {
+  max-width: 690px;
+}
+.original .utility-footer {
+  border: 0;
+  justify-content: center;
+  font-size: 11px;
+}
+.original .section-label {
+  font-size: 11px;
+  font-family: inherit;
+}
+.original.state-landing .section-label {
+  display: none;
+}
+.original .file-symbol {
+  width: 50px;
+  height: 60px;
+  color: var(--accent);
+}
+.original .file-symbol svg {
+  stroke-width: 1.7;
+}
+.original .file-well strong {
+  font-size: 27px;
+  font-weight: 750;
+  letter-spacing: -0.8px;
+}
+.original .file-well > span:last-child {
+  font-size: 13px;
+}
+.original .file-well u {
+  color: var(--text);
+}
+.original .well-foot {
+  font-family: inherit;
+  font-size: 10px;
+  padding-top: 16px;
+}
+.original .file-row strong {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.original .file-row span {
+  font-family: inherit;
+  font-size: 11px;
+}
+.original .file-row {
+  border-top: 0;
+  padding-top: 0;
+  padding-bottom: 24px;
+}
+.original .file-thumb {
+  width: 64px;
+  height: 72px;
+  border-radius: 6px;
+}
+.original .file-options label {
+  font-size: 12px;
+}
+.original .file-options input:not([type='checkbox']),
+.original .file-options select {
+  border-radius: 6px;
+  background: #151816;
+  padding: 12px;
+  font-size: 12px;
+}
+.original .file-options .check {
+  font-size: 12px;
+}
+.original .solid {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 12px 20px;
+}
+.original .send-row {
+  padding-top: 22px;
+}
+.original .send-row > span {
+  font-family: inherit;
+  font-size: 10px;
+}
+.original .actual-preview {
+  border-radius: 8px;
+  height: 265px;
+}
+.original .download-row h2 {
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+.original .download-row p {
+  font-size: 11px;
+}
+.original .share-address label {
+  font-size: 11px;
+}
+.original .share-address code {
+  font-size: 12px;
+}
+.original .share-address .plain {
+  font-weight: 600;
+  color: var(--accent);
+}
+.original .file-lifetime {
+  font-family: inherit;
+  font-size: 11px;
+}
+.original .file-lifetime details,
+.original .file-lifetime .plain {
+  font-family: inherit;
+  font-size: 11px;
+}
+.original .share-view .section-label {
+  font-family: inherit;
+  font-size: 11px;
+}
+.original .plain {
+  font-size: 12px;
+}
+.original .admin-tools input {
+  font-size: 12px;
+}
+.original th {
+  font-family: inherit;
+  font-size: 11px;
+}
+.original td {
+  font-size: 12px;
+}
+.original .table-foot {
+  font-family: inherit;
+  font-size: 11px;
+}
+.original .mock-status {
+  text-align: center;
+}
+.swatch-inset,
+.swatch-open,
+.swatch-ledger {
+  background: #cbf3c0;
+}
+/* Inset. Solid tray, modest curvature, bold actions. */
+.inset .file-well {
+  min-height: 270px;
+  border: 1px solid #354139;
+  border-radius: 12px;
+  gap: 13px;
+}
+.inset .file-symbol {
+  margin-bottom: 10px;
+}
+.inset.state-selected .transfer {
+  background: #1e2520;
+  border: 1px solid #354139;
+  border-radius: 12px;
+  padding: 28px;
+}
+.inset.state-selected .section-label {
+  padding-bottom: 22px;
+  color: var(--accent);
+}
+.inset.state-share .share-view {
+  background: #1e2520;
+  border: 1px solid #354139;
+  border-radius: 12px;
+  padding: 22px;
+}
+.inset .file-table {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.inset th {
+  background: var(--well);
+}
+.inset td {
+  padding-block: 17px;
+}
+/* Open. Weight and alignment do the work; no outer panel. */
+.open .identity {
+  justify-content: flex-start;
+}
+.open .tool {
+  max-width: none;
+}
+.open .file-well {
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 30px 0 38px;
+  min-height: 235px;
+  gap: 12px;
+}
+.open .file-well strong {
+  font-size: 39px;
+  letter-spacing: -1.4px;
+}
+.open .file-symbol {
+  width: 40px;
+  height: 48px;
+  margin-bottom: 10px;
+}
+.open .utility-footer {
+  justify-content: flex-start;
+}
+.open.state-selected .transfer {
+  padding-block: 18px;
+}
+.open .section-label {
+  padding-bottom: 22px;
+}
+.open .actual-preview {
+  height: 300px;
+  border-radius: 3px;
+}
+.open .file-options {
+  grid-template-columns: 1fr 1fr;
+  max-width: 470px;
+}
+.open .file-options input:not([type='checkbox']),
+.open .file-options select {
+  border-radius: 3px;
+}
+.open .solid {
+  border-radius: 3px;
+}
+.open .download-row {
+  padding-block: 24px;
+}
+/* Ledger. A horizontal file slot and visible rows. */
+.ledger .indie-page {
+  max-width: 820px;
+}
+.ledger .file-well {
+  position: relative;
+  min-height: 155px;
+  align-items: flex-start;
+  padding: 32px 25px 32px 102px;
+  gap: 9px;
+  border-radius: 5px;
+  border-color: var(--rule);
+}
+.ledger .file-symbol {
+  position: absolute;
+  left: 31px;
+  top: 49px;
+  width: 35px;
+  height: 45px;
+}
+.ledger .file-well strong {
+  font-size: 24px;
+}
+.ledger .file-well > span:last-child {
+  font-size: 12px;
+}
+.ledger .well-foot {
+  padding-top: 12px;
+}
+.ledger.state-selected .transfer {
+  border-block: 1px solid var(--rule);
+  padding-block: 22px;
+}
+.ledger .file-options {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+}
+.ledger .file-options label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--rule);
+  gap: 14px;
+}
+.ledger .file-options select,
+.ledger .file-options input:not([type='checkbox']) {
+  width: 180px;
+  margin: 0;
+  padding: 9px 11px;
+  border: 0;
+  background: var(--well);
+  border-radius: 4px;
+}
+.ledger .file-options .check {
+  justify-content: flex-start;
+  flex-direction: row-reverse;
+}
+.ledger .file-options .check input {
+  margin-left: auto;
+}
+.ledger .send-row {
+  border: 0;
+}
+.ledger .actual-preview {
+  height: 240px;
+  border-radius: 4px;
+}
+.ledger .solid {
+  padding: 10px 18px;
+  border-radius: 4px;
+}
+.ledger .file-row {
+  border: 0;
+}
+.ledger .download-row {
+  border-bottom: 1px solid var(--rule);
+}
+.ledger .share-address {
+  border-top: 0;
+}
+.ledger td {
+  padding-block: 18px;
+}
+@media (max-width: 560px) {
+  .original .indie-page {
+    padding: 38px 24px 24px;
+    min-height: 650px;
+  }
+  .original .original-brand {
+    font-size: 30px;
+    gap: 10px;
+    letter-spacing: -1.4px;
+  }
+  .original-brand img {
+    width: 38px;
+    height: 42px;
+  }
+  .original .workspace {
+    padding: 35px 0;
+  }
+  .original .well-foot {
+    font-size: 9px;
+    gap: 16px;
+  }
+  .original .well-foot > span:first-child {
+    max-width: 150px;
+  }
+  .original .file-row strong {
+    font-size: 13px;
+  }
+  .original .file-options label,
+  .original .file-options .check {
+    font-size: 11px;
+  }
+  .original .file-options input:not([type='checkbox']),
+  .original .file-options select {
+    font-size: 11px;
+    padding: 10px;
+  }
+  .original .solid {
+    font-size: 12px;
+    padding: 11px 15px;
+  }
+  .original .send-row > span {
+    font-size: 9px;
+  }
+  .original .utility-footer {
+    font-size: 10px;
+  }
+  .original .actual-preview {
+    height: 220px;
+  }
+  .original .download-row h2 {
+    font-size: 16px;
+  }
+  .original .share-address code {
+    font-size: 10px;
+  }
+  .original .file-lifetime,
+  .original .file-lifetime details {
+    font-size: 10px;
+  }
+  .inset.state-selected .transfer {
+    padding: 20px;
+  }
+  .inset .file-well {
+    min-height: 240px;
+  }
+  .inset.state-share .share-view {
+    padding: 16px;
+  }
+  .inset .actual-preview {
+    height: 190px;
+  }
+  .open .file-well strong {
+    font-size: 35px;
+  }
+  .ledger .file-well {
+    padding: 28px 18px 28px 78px;
+    min-height: 155px;
+  }
+  .ledger .file-symbol {
+    left: 23px;
+    width: 28px;
+    height: 38px;
+    top: 50px;
+  }
+  .ledger .file-well strong {
+    font-size: 20px;
+  }
+  .ledger .file-options select,
+  .ledger .file-options input:not([type='checkbox']) {
+    width: 150px;
+  }
+}
