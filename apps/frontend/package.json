@@ -1,0 +1,13 @@
+{
+  "name": "@ghostdrop/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "express": "^5.1.0"
+  }
+}

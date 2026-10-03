@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
-import { createApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { createApp } from '../apps/backend/src/app.js';
+import { loadConfig } from '../apps/backend/src/config.js';
 
 export async function fixture(t, overrides = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'ghostdrop-test-'));

@@ -3,13 +3,18 @@
 **
 !package.json
 !package-lock.json
-!src/
-!src/**
-!public/
-!public/**
-!scripts/
-!scripts/hash-password.js
+!apps/
+!apps/backend/
+!apps/backend/package.json
+!apps/backend/src/
+!apps/backend/src/**
+!apps/backend/scripts/
+!apps/backend/scripts/hash-password.js
+!apps/frontend/
+!apps/frontend/public/
+!apps/frontend/public/**
+!apps/frontend/nginx.conf.template
 
 # Design explorations are not part of the deployed application.
-public/mocks/
-public/mocks/**
+apps/frontend/public/mocks/
+apps/frontend/public/mocks/**

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openStore } from '../src/store.js';
-import { loadConfig } from '../src/config.js';
+import { openStore } from '../apps/backend/src/store.js';
+import { loadConfig } from '../apps/backend/src/config.js';
 
 test('file records persist when the store reopens', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ghostdrop-'));

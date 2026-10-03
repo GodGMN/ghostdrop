@@ -51,7 +51,7 @@ export function loadConfig(env = process.env) {
     env.ADMIN_PASSWORD_HASH &&
     !/^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/.test(env.ADMIN_PASSWORD_HASH)
   )
-    throw new Error('Invalid ADMIN_PASSWORD_HASH. Generate it with scripts/hash-password.js');
+    throw new Error('Invalid ADMIN_PASSWORD_HASH. Generate it with npm run hash-password');
   const origin = new URL(env.PUBLIC_ORIGIN || 'http://localhost:3000');
   if (
     !['http:', 'https:'].includes(origin.protocol) ||

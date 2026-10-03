@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fixture } from './helpers.js';
 import { init, chunk, complete } from './chunk-helpers.js';
-import { CHUNK_BYTES } from '../src/chunks.js';
+import { CHUNK_BYTES } from '../apps/backend/src/chunks.js';
 
 test('an 8 MiB file uploads through an unchanged 1 MiB body-limit proxy', async (t) => {
   const { base, store } = await fixture(t);

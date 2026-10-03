@@ -12,7 +12,11 @@ cp .env.example .env
 npm run dev
 ```
 
-Open http://localhost:3000. `npm run dev` restarts the server after code changes. Use `npm start` without the watcher. For LAN access, set `HOST=0.0.0.0` and `PUBLIC_ORIGIN` to the exact URL you open in the browser.
+Open http://localhost:3000. `npm run dev` starts both apps and restarts each after its code changes. The frontend listens on `FRONTEND_PORT`, falling back to `PORT` or 3000; the API listens on `BACKEND_PORT`, defaulting to the next port. Use `npm start` without watchers. For LAN access, set `HOST=0.0.0.0` and `PUBLIC_ORIGIN` to the exact frontend URL you open in the browser.
+
+This is an npm workspace monorepo. `apps/frontend/public` contains the browser UI; `apps/frontend/server.js` is its development server. `apps/backend/src` contains the Node/Express API and storage logic. Production deploys each app independently with its own Dockerfile. The frontend serves static assets and proxies `/api/*` to the private backend. Both apps share one browser origin.
+
+To run only one app from the repository root, use `npm run start:backend` or `npm run start:frontend`. Set `PORT` for the API and `FRONTEND_PORT` plus `BACKEND_URL` for the development frontend.
 
 ```sh
 npm test
@@ -52,7 +56,7 @@ Run a single application process against each data directory. In-memory upload t
 Admin is disabled until a password hash is configured. Generate a hash with a hidden prompt:
 
 ```sh
-node scripts/hash-password.js
+npm run hash-password
 ```
 
 Set the result as `ADMIN_PASSWORD_HASH` in `.env`, then restart and open `/admin`. Do not put the plaintext password in the configuration.
@@ -81,37 +85,89 @@ The panel lists files with size, content type, hash, creation and expiration dat
 | `S3_SECRET_ACCESS_KEY` | SDK credential chain    | Server-side secret access key                          |
 | `S3_SESSION_TOKEN`     | Empty                   | Optional temporary AWS credential token                |
 
-For deployment, run `npm ci --omit=dev` and `npm start`, mount persistent private storage, and put the service behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
+For production, build the two Docker images below, mount persistent private storage on the backend, and put the frontend behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
 
 ### Docker
 
-Build and run the production image:
+Both Dockerfiles use the repository root as their build context:
 
 ```sh
-docker build -t ghostdrop .
+docker build -f apps/backend/Dockerfile -t ghostdrop-backend .
+docker build -f apps/frontend/Dockerfile -t ghostdrop-frontend .
+docker network create ghostdrop
 docker volume create ghostdrop-data
-docker run -d --name ghostdrop --restart unless-stopped \
-  -p 3090:3000 \
+docker run -d --name ghostdrop-backend --restart unless-stopped \
+  --network ghostdrop \
   -e PUBLIC_ORIGIN=http://localhost:3090 \
   -v ghostdrop-data:/app/data \
-  ghostdrop
+  ghostdrop-backend
+docker run -d --name ghostdrop-frontend --restart unless-stopped \
+  --network ghostdrop -p 3090:80 \
+  -e BACKEND_URL=http://ghostdrop-backend:3000 \
+  ghostdrop-frontend
 ```
 
-Open `http://localhost:3090`. Change `PUBLIC_ORIGIN` to the exact URL visitors use, including the port if applicable. The frontend and API share container port 3000. The host port can be changed without changing the container port.
+Open `http://localhost:3090`. The frontend listens on container port 80 and the backend on port 3000. Only the frontend needs a published port. `BACKEND_URL` is a server-side HTTP origin without a trailing slash or path. It points to the backend's reachable container hostname. The frontend resolves Docker DNS again when the backend is replaced, so it can be deployed independently. Its configured streaming proxy keeps chunk requests below 1 MiB and streams download responses without buffering the full file. See [nginx proxy behavior](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
 
-The image runs Node 24 as the unprivileged `node` user, installs only production dependencies, and starts Node directly for shutdown signals. Its health check probes `/api/config`. The build context excludes personal MCP configurations, `.env`, Git history, local storage, tests and design mockups.
+The backend runs Node 24 as the unprivileged `node` user and installs only its production workspace dependencies. Its health check probes `/api/config`. The frontend uses the official nginx Alpine image, substitutes `BACKEND_URL` into its proxy configuration at startup and checks `/healthz`. The build context excludes personal MCP configurations, `.env`, Git history, local storage, tests and design mockups.
 
-Keep the `ghostdrop-data` volume when replacing the container. It contains both SQLite metadata and uploaded files. A bind mount needs write permission for UID/GID 1000; a new named volume inherits the image directory's ownership. Back up this data together using a consistent SQLite backup or while the container is stopped.
+Keep the `ghostdrop-data` volume when replacing the backend. It contains SQLite metadata and local uploads/staging. A bind mount needs write permission for UID/GID 1000; a new named volume inherits the image directory's ownership. Back up metadata and file bytes consistently. Run one backend per data directory and S3 prefix.
 
-For HTTPS behind a reverse proxy, publish to loopback with `-p 127.0.0.1:3090:3000`, set `PUBLIC_ORIGIN=https://your-domain.example` and `COOKIE_SECURE=true`. Pass other settings such as `MAX_FILE_BYTES` and `ADMIN_PASSWORD_HASH` with `-e` or a private `--env-file`. Keep the browser chunk protocol's request size in mind when configuring the proxy.
-
-To generate an admin password hash with the image:
+To generate an admin password hash with the backend image:
 
 ```sh
-docker run --rm -it --entrypoint node ghostdrop scripts/hash-password.js
+docker run --rm -it --entrypoint node ghostdrop-backend apps/backend/scripts/hash-password.js
 ```
 
-Set the resulting hash as `ADMIN_PASSWORD_HASH` when starting the server. Admin access remains disabled without it.
+Set the resulting hash as `ADMIN_PASSWORD_HASH` on the backend. Admin access remains disabled without it.
+
+### Coolify: two applications
+
+Create two Dockerfile applications from the same private repository and branch `main`. Use these settings:
+
+| Setting             | Frontend                    | Backend                                 |
+| ------------------- | --------------------------- | --------------------------------------- |
+| Base directory      | `/`                         | `/`                                     |
+| Dockerfile location | `/apps/frontend/Dockerfile` | `/apps/backend/Dockerfile`              |
+| Ports Exposes       | `80`                        | `3000`                                  |
+| Port Mappings       | Empty                       | Empty                                   |
+| Public domain       | Your HTTPS Ghostdrop domain | None                                    |
+| Persistent volume   | None                        | `ghostdrop-data` mounted at `/app/data` |
+| Health check        | `/healthz`, port 80         | `/api/config`, port 3000                |
+
+Leave build/start commands empty. Keep both applications on the same deployment server and Docker destination network. Give the backend the Custom Container Name `ghostdrop-backend`, so the frontend has a stable internal hostname and backend deployments stop the old instance before starting the replacement. Do not enable overlapping backend instances or share its data/S3 namespace with preview deployments. Coolify's [deployment settings](https://coolify.io/docs/applications/deployments/rolling-updates) describe this stop-first behavior.
+
+The frontend needs only this runtime environment variable:
+
+```dotenv
+BACKEND_URL=http://ghostdrop-backend:3000
+```
+
+The backend runtime variables for an S3 deployment are:
+
+```dotenv
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3000
+PUBLIC_ORIGIN=https://your-ghostdrop.example.com
+COOKIE_SECURE=true
+DATA_DIR=/app/data
+MAX_FILE_BYTES=104857600
+CLEANUP_INTERVAL_MS=60000
+STORAGE_BACKEND=s3
+S3_ENDPOINT=https://your-minio-api.example.com
+S3_BUCKET=ghostdrop-prod
+S3_REGION=us-east-1
+S3_PREFIX=ghostdrop/
+S3_FORCE_PATH_STYLE=true
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+ADMIN_PASSWORD_HASH=
+```
+
+`PUBLIC_ORIGIN` is the frontend's exact public HTTPS origin, with no internal port. Create the private production bucket before deployment, with versioning never enabled. Keep production storage separate from development. S3 credentials and the admin hash belong only on the backend. All application variables are runtime-only; disable Build Variable in Coolify. The frontend has no browser API URL or build-time variables. For storage configuration, see [Coolify persistent storage](https://coolify.io/docs/applications/configuration/persistent-storage).
+
+Deploy the backend first, then the frontend. DNS for the public domain points to the Coolify server. Check `/api/config` through the frontend domain, upload a file and open its sharing/download links. Back up `/app/data` together with the bucket, and allow enough disk space for full-size upload staging and one-time downloads.
 
 ### S3 and MinIO
 
@@ -134,7 +190,7 @@ COOKIE_SECURE=true
 
 Use the MinIO **S3 API** endpoint, usually port 9000, rather than the console on port 9001. Keep keys server-side; the public configuration endpoint and receipts never expose them. The app also accepts the SDK's default credential chain when the explicit S3 key pair is omitted, for example an AWS workload role.
 
-For Docker, pass the private file with `--env-file /path/to/ghostdrop.env` and retain `-v ghostdrop-data:/app/data`. Omit `DATA_DIR` from that environment file or set it to `/app/data`. Credentials should permit these operations on the bucket and the reserved `ghostdrop/` object prefix, including its ownership marker:
+For the backend Docker container, pass the private file with `--env-file /path/to/ghostdrop.env` and retain `-v ghostdrop-data:/app/data`. Omit `DATA_DIR` from that environment file or set it to `/app/data`. Credentials should permit these operations on the bucket and the reserved `ghostdrop/` object prefix, including its ownership marker:
 
 - Bucket: `s3:ListBucket`, `s3:GetBucketVersioning`, `s3:ListBucketMultipartUploads`.
 - Objects: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:AbortMultipartUpload`, `s3:ListMultipartUploadParts`.

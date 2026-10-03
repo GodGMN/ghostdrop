@@ -7,8 +7,8 @@ import http from 'node:http';
 import { setTimeout } from 'node:timers/promises';
 import { fixture } from './helpers.js';
 import { init, chunk, status, complete, headers, path } from './chunk-helpers.js';
-import { CHUNK_BYTES } from '../src/chunks.js';
-import { token } from '../src/security.js';
+import { CHUNK_BYTES } from '../apps/backend/src/chunks.js';
+import { token } from '../apps/backend/src/security.js';
 
 test('multiple bounded chunks produce identical bytes and a stable finalization receipt', async (t) => {
   const { base, store } = await fixture(t);

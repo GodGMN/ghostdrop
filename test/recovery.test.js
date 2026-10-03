@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync, writeFileSync, utimesSync, existsSync } from 'node
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { once } from 'node:events';
-import { createApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { createApp } from '../apps/backend/src/app.js';
+import { loadConfig } from '../apps/backend/src/config.js';
 import { upload } from './helpers.js';
 
 test('restart preserves files and passwords and recovers interrupted deletions', async (t) => {

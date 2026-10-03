@@ -49,13 +49,6 @@ test('password protection guards download and preview, including direct byte URL
   );
   assert.equal((await fetch(`${url}/download`)).status, 401);
 });
-test('legacy preview pages redirect to the default sharing page', async (t) => {
-  const { base } = await fixture(t);
-  const file = await (await upload(base)).json();
-  const response = await fetch(`${base}/f/${file.id}/preview`, { redirect: 'manual' });
-  assert.equal(response.status, 302);
-  assert.equal(response.headers.get('location'), `/f/${file.id}`);
-});
 test('password guesses are rate limited', async (t) => {
   const { base } = await fixture(t);
   const file = await (await upload(base, { password: 'secret' })).json();
@@ -99,7 +92,7 @@ test('expired files are immediately unavailable and physically removed', async (
 test('deletion requires the private token and an explicit mutation', async (t) => {
   const { base, store } = await fixture(t);
   const file = await (await upload(base)).json();
-  assert.equal((await fetch(`${base}/delete/${file.id}`)).status, 200);
+  assert.equal((await fetch(`${base}/api/files/${file.id}`)).status, 200);
   assert.equal(existsSync(join(store.filesDir, file.id)), true);
   const url = `${base}/api/files/${file.id}`;
   assert.equal(

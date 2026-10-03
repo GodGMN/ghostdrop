@@ -1,5 +1,4 @@
 import express from 'express';
-import { fileURLToPath } from 'node:url';
 import { openStore } from './store.js';
 import { receiveUpload } from './upload.js';
 import { httpError } from './security.js';
@@ -74,13 +73,7 @@ export function createApp(config) {
     });
   ready.catch((err) => console.error('Startup cleanup failed:', err.message));
   registerAdminRoutes(app, store, requireAdmin, runCleanup);
-  app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
-  app.get('/f/:id/preview', (req, res) =>
-    res.redirect(302, `/f/${encodeURIComponent(req.params.id)}`),
-  );
-  app.get(['/f/:id', '/f/:id/direct', '/delete/:id', '/admin'], (req, res) =>
-    res.sendFile(fileURLToPath(new URL('../public/index.html', import.meta.url))),
-  );
+  app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found.' }));
   app.use((err, req, res, next) => {
     req.resume();
     if (res.destroyed) return;

@@ -16,9 +16,9 @@ import {
 } from '@aws-sdk/client-s3';
 import { fixture, upload } from './helpers.js';
 import { init, chunk, complete, path, headers } from './chunk-helpers.js';
-import { loadConfig } from '../src/config.js';
-import { createApp } from '../src/app.js';
-import { hashPassword, token } from '../src/security.js';
+import { loadConfig } from '../apps/backend/src/config.js';
+import { createApp } from '../apps/backend/src/app.js';
+import { hashPassword, token } from '../apps/backend/src/security.js';
 
 const enabled = !!process.env.TEST_S3_ENDPOINT;
 const options = { skip: !enabled };

@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync, appendFileSync, renameSync, statSync, readFileSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { once } from 'node:events';
-import { createApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { createApp } from '../apps/backend/src/app.js';
+import { loadConfig } from '../apps/backend/src/config.js';
 import { init, chunk, status, complete } from './chunk-helpers.js';
 
 test('restart resumes acknowledged bytes, rolls back extra bytes and recovers a renamed finalization', async (t) => {

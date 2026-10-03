@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { fixture, upload } from './helpers.js';
-import { hashPassword } from '../src/security.js';
+import { hashPassword } from '../apps/backend/src/security.js';
 
 async function adminFixture(t) {
   const runtime = await fixture(t, { adminPasswordHash: await hashPassword('admin-test') });

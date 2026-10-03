@@ -2,7 +2,7 @@
 /.codex/config.toml
 /.mcp.json
 /opencode.json
-/node_modules/
+node_modules/
 /data/
-/.env
+.env
 /coverage/

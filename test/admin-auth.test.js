@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from './helpers.js';
-import { hashPassword } from '../src/security.js';
+import { hashPassword } from '../apps/backend/src/security.js';
 
 test('admin access is disabled without a configured password hash', async (t) => {
   const { base } = await fixture(t);

@@ -7,20 +7,21 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=.env src/server.js",
-    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --env-file-if-exists=.env scripts/dev.js",
+    "start": "node --env-file-if-exists=.env scripts/dev.js",
     "test": "node --test test/*.test.js",
     "check": "node scripts/check.js && npm run format:check",
-    "format": "prettier --write src public scripts test package.json README.md .prettierrc.json",
-    "format:check": "prettier --check src public scripts test package.json README.md .prettierrc.json"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1146.0",
-    "@aws-sdk/lib-storage": "^3.1146.0",
-    "busboy": "^1.6.0",
-    "express": "^5.1.0"
+    "format": "prettier --write apps scripts test package.json README.md .prettierrc.json",
+    "format:check": "prettier --check apps scripts test package.json README.md .prettierrc.json",
+    "start:backend": "node --env-file-if-exists=.env apps/backend/src/server.js",
+    "start:frontend": "node --env-file-if-exists=.env apps/frontend/server.js",
+    "hash-password": "node apps/backend/scripts/hash-password.js"
   },
   "devDependencies": {
     "prettier": "^3.9.9"
-  }
+  },
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend"
+  ]
 }
