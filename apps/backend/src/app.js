@@ -15,6 +15,12 @@ export function createApp(config) {
   store.storage = createStorage(store, config);
   const app = express();
   app.disable('x-powered-by');
+  // Coolify can strip /api before forwarding. Accept both forms through the
+  // same routes and security middleware, as the gimenodev API does.
+  app.use((req, res, next) => {
+    if (!/^\/api(?:\/|\?|$)/.test(req.url)) req.url = `/api${req.url}`;
+    next();
+  });
   app.use((req, res, next) => {
     res.set({
       'X-Content-Type-Options': 'nosniff',

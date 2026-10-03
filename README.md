@@ -96,7 +96,7 @@ docker build -f apps/backend/Dockerfile -t ghostdrop-backend .
 docker build -f apps/frontend/Dockerfile -t ghostdrop-frontend .
 ```
 
-The frontend listens on container port 80 and the backend on port 3000. Deploy behind a path-aware reverse proxy: route `/api/*` to the backend without stripping `/api`, and all other paths to the frontend. The Coolify settings below configure those routes. A raw frontend container serves only static files and returns 404 for API paths; it has no internal backend proxy or production environment variables.
+The frontend listens on container port 80 and the backend on port 3000. Deploy behind a path-aware reverse proxy: route `/api/*` to the backend and all other paths to the frontend. The API accepts both bare paths and paths prefixed with `/api`, so prefix stripping is supported. The Coolify settings below configure those routes. A raw frontend container serves only static files and returns 404 for API paths; it has no internal backend proxy or production environment variables.
 
 The backend runs Node 24 as the unprivileged `node` user and installs only its production workspace dependencies. Its health check probes `/api/config`. The frontend uses the official nginx Alpine image with a static configuration and checks `/healthz`. The build context excludes personal MCP configurations, `.env`, Git history, local storage, tests and design mockups.
 
@@ -124,7 +124,7 @@ Create two Dockerfile applications from the same private repository and branch `
 | Persistent volume   | None                        | `ghostdrop-data` mounted at `/app/data` |
 | Health check        | `/healthz`, port 80         | `/api/config`, port 3000                |
 
-Leave build/start commands empty. Coolify's domain port selects the internal backend port; visitors still use normal HTTPS port 443. On the backend, disable **Strip Prefixes**, or choose **Keep paths as-is**, so `/api/uploads` reaches Express as `/api/uploads`. The more specific `/api` route takes priority over the frontend root route. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
+Leave build/start commands empty. In Coolify's domain dialog, use host `drop.example.com`, frontend port `80` with no path, and backend port `3000` with path `/api/`. These ports are internal; visitors use normal HTTPS port 443. Leave the default path-prefix handling unchanged. The backend accepts `/config` and `/api/config`, just like the `gimenodev-landing` API accepts bare and prefixed paths. Every path goes through the same origin, authentication and CSRF checks. No custom labels are needed. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
 
 Enable **Consistent Container Names** on the backend to stop the old instance before starting its replacement. Do not enable overlapping backend instances or share its data/S3 namespace with preview deployments. No specific backend hostname or frontend-to-backend network connection is required. Coolify's proxy must be able to reach both apps. Its [deployment settings](https://coolify.io/docs/applications/deployments/rolling-updates) describe stop-first behavior.
 
