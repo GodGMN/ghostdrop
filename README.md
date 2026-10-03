@@ -14,7 +14,7 @@ npm run dev
 
 Open http://localhost:3000. `npm run dev` starts both apps and restarts each after its code changes. The frontend listens on `FRONTEND_PORT`, falling back to `PORT` or 3000; the API listens on `BACKEND_PORT`, defaulting to the next port. Use `npm start` without watchers. For LAN access, set `HOST=0.0.0.0` and `PUBLIC_ORIGIN` to the exact frontend URL you open in the browser.
 
-This is an npm workspace monorepo. `apps/frontend/public` contains the browser UI; `apps/frontend/server.js` is its development server. `apps/backend/src` contains the Node/Express API and storage logic. Production deploys each app independently with its own Dockerfile. The frontend serves static assets and proxies `/api/*` to the private backend. Both apps share one browser origin.
+This is an npm workspace monorepo. `apps/frontend/public` contains the browser UI; `apps/frontend/server.js` is its development server. `apps/backend/src` contains the Node/Express API and storage logic. Production deploys each app independently with its own Dockerfile. The production frontend serves static assets; Coolify routes `/api/*` directly to the backend. Both apps share one browser origin. The local development frontend proxies API requests so `npm run dev` also uses one origin.
 
 To run only one app from the repository root, use `npm run start:backend` or `npm run start:frontend`. Set `PORT` for the API and `FRONTEND_PORT` plus `BACKEND_URL` for the development frontend.
 
@@ -94,22 +94,11 @@ Both Dockerfiles use the repository root as their build context:
 ```sh
 docker build -f apps/backend/Dockerfile -t ghostdrop-backend .
 docker build -f apps/frontend/Dockerfile -t ghostdrop-frontend .
-docker network create ghostdrop
-docker volume create ghostdrop-data
-docker run -d --name ghostdrop-backend --restart unless-stopped \
-  --network ghostdrop \
-  -e PUBLIC_ORIGIN=http://localhost:3090 \
-  -v ghostdrop-data:/app/data \
-  ghostdrop-backend
-docker run -d --name ghostdrop-frontend --restart unless-stopped \
-  --network ghostdrop -p 3090:80 \
-  -e BACKEND_URL=http://ghostdrop-backend:3000 \
-  ghostdrop-frontend
 ```
 
-Open `http://localhost:3090`. The frontend listens on container port 80 and the backend on port 3000. Only the frontend needs a published port. `BACKEND_URL` is a server-side HTTP origin without a trailing slash or path. It points to the backend's reachable container hostname. The frontend resolves Docker DNS again when the backend is replaced, so it can be deployed independently. Its configured streaming proxy keeps chunk requests below 1 MiB and streams download responses without buffering the full file. See [nginx proxy behavior](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
+The frontend listens on container port 80 and the backend on port 3000. Deploy behind a path-aware reverse proxy: route `/api/*` to the backend without stripping `/api`, and all other paths to the frontend. The Coolify settings below configure those routes. A raw frontend container serves only static files and returns 404 for API paths; it has no internal backend proxy or production environment variables.
 
-The backend runs Node 24 as the unprivileged `node` user and installs only its production workspace dependencies. Its health check probes `/api/config`. The frontend uses the official nginx Alpine image, substitutes `BACKEND_URL` into its proxy configuration at startup and checks `/healthz`. The build context excludes personal MCP configurations, `.env`, Git history, local storage, tests and design mockups.
+The backend runs Node 24 as the unprivileged `node` user and installs only its production workspace dependencies. Its health check probes `/api/config`. The frontend uses the official nginx Alpine image with a static configuration and checks `/healthz`. The build context excludes personal MCP configurations, `.env`, Git history, local storage, tests and design mockups.
 
 Keep the `ghostdrop-data` volume when replacing the backend. It contains SQLite metadata and local uploads/staging. A bind mount needs write permission for UID/GID 1000; a new named volume inherits the image directory's ownership. Back up metadata and file bytes consistently. Run one backend per data directory and S3 prefix.
 
@@ -131,17 +120,15 @@ Create two Dockerfile applications from the same private repository and branch `
 | Dockerfile location | `/apps/frontend/Dockerfile` | `/apps/backend/Dockerfile`              |
 | Ports Exposes       | `80`                        | `3000`                                  |
 | Port Mappings       | Empty                       | Empty                                   |
-| Public domain       | Your HTTPS Ghostdrop domain | None                                    |
+| Public domain       | `https://drop.example.com`  | `https://drop.example.com:3000/api`     |
 | Persistent volume   | None                        | `ghostdrop-data` mounted at `/app/data` |
 | Health check        | `/healthz`, port 80         | `/api/config`, port 3000                |
 
-Leave build/start commands empty. Keep both applications on the same deployment server and Docker destination network. Give the backend the Custom Container Name `ghostdrop-backend`, so the frontend has a stable internal hostname and backend deployments stop the old instance before starting the replacement. Do not enable overlapping backend instances or share its data/S3 namespace with preview deployments. Coolify's [deployment settings](https://coolify.io/docs/applications/deployments/rolling-updates) describe this stop-first behavior.
+Leave build/start commands empty. Coolify's domain port selects the internal backend port; visitors still use normal HTTPS port 443. On the backend, disable **Strip Prefixes**, or choose **Keep paths as-is**, so `/api/uploads` reaches Express as `/api/uploads`. The more specific `/api` route takes priority over the frontend root route. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
 
-The frontend needs only this runtime environment variable:
+Enable **Consistent Container Names** on the backend to stop the old instance before starting its replacement. Do not enable overlapping backend instances or share its data/S3 namespace with preview deployments. No specific backend hostname or frontend-to-backend network connection is required. Coolify's proxy must be able to reach both apps. Its [deployment settings](https://coolify.io/docs/applications/deployments/rolling-updates) describe stop-first behavior.
 
-```dotenv
-BACKEND_URL=http://ghostdrop-backend:3000
-```
+The frontend needs **no environment variables**. Remove `BACKEND_URL` from its Coolify configuration. That variable is only used by the local Node development frontend when running it separately.
 
 The backend runtime variables for an S3 deployment are:
 
@@ -165,7 +152,7 @@ S3_SECRET_ACCESS_KEY=your-secret-key
 ADMIN_PASSWORD_HASH=
 ```
 
-`PUBLIC_ORIGIN` is the frontend's exact public HTTPS origin, with no internal port. Create the private production bucket before deployment, with versioning never enabled. Keep production storage separate from development. S3 credentials and the admin hash belong only on the backend. All application variables are runtime-only; disable Build Variable in Coolify. The frontend has no browser API URL or build-time variables. For storage configuration, see [Coolify persistent storage](https://coolify.io/docs/applications/configuration/persistent-storage).
+`PUBLIC_ORIGIN` is the frontend's exact public HTTPS origin, with no internal port. Create the private production bucket before deployment, with versioning never enabled. Keep production storage separate from development. S3 credentials and the admin hash belong only on the backend. All application variables are runtime-only; disable Build Variable in Coolify. The production frontend has no environment variables or browser API URL. For storage configuration, see [Coolify persistent storage](https://coolify.io/docs/applications/configuration/persistent-storage).
 
 Deploy the backend first, then the frontend. DNS for the public domain points to the Coolify server. Check `/api/config` through the frontend domain, upload a file and open its sharing/download links. Back up `/app/data` together with the bucket, and allow enough disk space for full-size upload staging and one-time downloads.
 

@@ -13,7 +13,7 @@
 !apps/frontend/
 !apps/frontend/public/
 !apps/frontend/public/**
-!apps/frontend/nginx.conf.template
+!apps/frontend/nginx.conf
 
 # Design explorations are not part of the deployed application.
 apps/frontend/public/mocks/
