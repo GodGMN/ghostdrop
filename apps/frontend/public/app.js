@@ -99,6 +99,37 @@ function wirePicker() {
     else choose(event.dataTransfer.files[0]);
   };
 }
-if (location.pathname === '/') wirePicker();
+function restricted() {
+  main.innerHTML = `<section class="card login-card"><p class="eyebrow">Uploads restricted</p><h1>Uploads are private here.</h1><p class="muted">This Ghostdrop server only accepts uploads from approved networks. Shared links still work.</p></section>`;
+}
+function unlockUploads() {
+  main.innerHTML = `<section class="card login-card"><p class="eyebrow">Private uploads</p><h1>Enter the upload password.</h1><form id="upload-unlock" class="form-grid"><label class="field">Upload password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">Unlock uploads</button></form></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
+  document.querySelector('#upload-unlock').onsubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget,
+      button = form.querySelector('button');
+    button.disabled = true;
+    try {
+      await api('/api/uploads/access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: form.elements.password.value }),
+      });
+      reset();
+    } catch (err) {
+      status(err.message, true);
+      button.disabled = false;
+    }
+  };
+  document.querySelector('#upload-unlock input').focus();
+}
+async function start() {
+  // Older backends have no access endpoint; uploads then report their own errors.
+  const access = await api('/api/uploads/access').catch(() => ({ allowed: true, unlocked: true }));
+  if (!access.allowed) restricted();
+  else if (!access.unlocked) unlockUploads();
+  else wirePicker();
+}
+if (location.pathname === '/') start();
 else if (location.pathname.startsWith('/admin')) import('./admin.js').then((m) => m.initAdmin());
 else import('./file.js').then((m) => m.initFile());

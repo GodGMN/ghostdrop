@@ -1,0 +1,9 @@
+# A plain hostname gets automatic HTTPS; an http:// address serves plain HTTP.
+{$GHOSTDROP_SITE} {
+	handle /api/* {
+		reverse_proxy backend:3000
+	}
+	handle {
+		reverse_proxy frontend:80
+	}
+}

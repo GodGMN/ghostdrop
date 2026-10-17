@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { isIP } from 'node:net';
 
 function integer(value, fallback, name, minimum = 1) {
   const result = value === undefined ? fallback : Number(value);
@@ -52,6 +53,31 @@ export function loadConfig(env = process.env) {
     !/^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/.test(env.ADMIN_PASSWORD_HASH)
   )
     throw new Error('Invalid ADMIN_PASSWORD_HASH. Generate it with npm run hash-password');
+  if (
+    env.UPLOAD_PASSWORD_HASH &&
+    !/^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/.test(env.UPLOAD_PASSWORD_HASH)
+  )
+    throw new Error('Invalid UPLOAD_PASSWORD_HASH. Generate it with npm run hash-password');
+  const uploadAllowedIps = (env.UPLOAD_ALLOWED_IPS || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const entry of uploadAllowedIps) {
+    const [address, prefix, extra] = entry.split('/');
+    const version = isIP(address);
+    if (
+      !version ||
+      extra !== undefined ||
+      (prefix !== undefined &&
+        (!/^\d+$/.test(prefix) || Number(prefix) > (version === 4 ? 32 : 128)))
+    )
+      throw new Error(`Invalid UPLOAD_ALLOWED_IPS entry: ${entry}`);
+  }
+  // Express trusts X-Forwarded-For only from these proxies. "true" would let any
+  // client spoof its address, so require a hop count or explicit proxy addresses.
+  const trustProxy = (env.TRUST_PROXY || '').trim();
+  if (trustProxy === 'true')
+    throw new Error('TRUST_PROXY=true is unsafe. Use a hop count such as 1 or proxy addresses');
   const origin = new URL(env.PUBLIC_ORIGIN || 'http://localhost:3000');
   if (
     !['http:', 'https:'].includes(origin.protocol) ||
@@ -72,6 +98,9 @@ export function loadConfig(env = process.env) {
     maxFileBytes: integer(env.MAX_FILE_BYTES, 100 * 1024 * 1024, 'MAX_FILE_BYTES'),
     origin: origin.origin,
     adminPasswordHash: env.ADMIN_PASSWORD_HASH || '',
+    uploadPasswordHash: env.UPLOAD_PASSWORD_HASH || '',
+    uploadAllowedIps,
+    trustProxy: /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy || false,
     cookieSecure: env.COOKIE_SECURE === 'true',
     cleanupIntervalMs: integer(env.CLEANUP_INTERVAL_MS, 60_000, 'CLEANUP_INTERVAL_MS'),
   };

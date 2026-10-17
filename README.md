@@ -63,6 +63,17 @@ Set the result as `ADMIN_PASSWORD_HASH` in `.env`, then restart and open `/admin
 
 The panel lists files with size, content type, hash, creation and expiration dates, and access restrictions. Search by filename, full SHA-256, or share ID/link. It also shows disk usage, supports downloads and confirmed deletion, and runs cleanup for expired files and inactive partial uploads. Admin downloads bypass the file password but still consume one-time files. Uploader IP addresses are not stored.
 
+## Restricting uploads
+
+Uploads are open to anyone by default. Two optional restrictions limit who can upload; downloads, sharing pages and deletion links stay public either way.
+
+- **Upload password.** Generate a hash with `npm run hash-password` and set it as `UPLOAD_PASSWORD_HASH`. The landing page then asks for the password before showing the drop zone. A correct password unlocks uploads in that browser for 12 hours. Attempts are rate limited like admin logins.
+- **IP allowlist.** Set `UPLOAD_ALLOWED_IPS` to a comma-separated list of addresses or CIDR ranges, for example `192.168.1.0/24,2001:db8::/32`. Other clients see an "uploads are restricted" page and every upload request returns 403.
+
+When both are set, both apply. Upload sessions live in memory, so a restart asks for the password again.
+
+Behind a reverse proxy, set `TRUST_PROXY` so Ghostdrop sees the visitor's address instead of the proxy's. The allowlist and every rate limit depend on it. Use the number of proxies in front of the backend (`1` for Coolify, Traefik or the bundled Docker Compose setup), or their addresses (`loopback`, `uniquelocal` or CIDRs). Leave it unset when Node faces the internet directly: a trusted `X-Forwarded-For` header can be forged by anyone who reaches the backend without passing through the proxy. `TRUST_PROXY=true` is rejected for that reason.
+
 ## Configuration
 
 | Variable               | Default                 | Purpose                                                |
@@ -74,6 +85,9 @@ The panel lists files with size, content type, hash, creation and expiration dat
 | `MAX_FILE_BYTES`       | `104857600`             | Maximum size of a single file, in bytes                |
 | `ADMIN_PASSWORD_HASH`  | Empty                   | Generated scrypt hash; empty disables admin            |
 | `COOKIE_SECURE`        | `false`                 | Set `true` when serving through HTTPS                  |
+| `UPLOAD_PASSWORD_HASH` | Empty                   | Generated scrypt hash; empty leaves uploads open       |
+| `UPLOAD_ALLOWED_IPS`   | Empty                   | Comma-separated IPs/CIDRs allowed to upload            |
+| `TRUST_PROXY`          | Unset                   | Proxy hop count or addresses; see Restricting uploads  |
 | `CLEANUP_INTERVAL_MS`  | `60000`                 | Background cleanup interval                            |
 | `STORAGE_BACKEND`      | `local`                 | Finalized file storage: `local` or `s3`                |
 | `S3_ENDPOINT`          | AWS default             | S3 API origin, e.g. the MinIO endpoint                 |
@@ -86,6 +100,28 @@ The panel lists files with size, content type, hash, creation and expiration dat
 | `S3_SESSION_TOKEN`     | Empty                   | Optional temporary AWS credential token                |
 
 For production, build the two Docker images below, mount persistent private storage on the backend, and put the frontend behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
+
+### Docker Compose
+
+The quickest way to run Ghostdrop anywhere Docker runs. `deploy/docker-compose.yml` builds both apps from this checkout and puts [Caddy](https://caddyserver.com) in front of them, so `/api/*` reaches the backend and everything else the frontend on a single origin. Files and the database live in the `ghostdrop-data` volume.
+
+```sh
+cd deploy
+cp .env.example .env
+docker compose up -d --build
+```
+
+Open http://localhost:8080. For a public server, point DNS at the machine and set these in `deploy/.env`; Caddy then obtains and renews a TLS certificate automatically:
+
+```dotenv
+GHOSTDROP_SITE=drop.example.com
+HTTP_PORT=80
+HTTPS_PORT=443
+PUBLIC_ORIGIN=https://drop.example.com
+COOKIE_SECURE=true
+```
+
+Generate admin or upload password hashes with `docker compose run --rm -it backend node apps/backend/scripts/hash-password.js`. `TRUST_PROXY=1` is preset because Caddy is one proxy hop. If another proxy sits in front of Caddy, increase it and add that proxy to Caddy's [`trusted_proxies`](https://caddyserver.com/docs/caddyfile/options#trusted-proxies); Caddy otherwise replaces any incoming `X-Forwarded-For`, so clients cannot spoof their address. Back up the `ghostdrop-data` volume while the stack is stopped.
 
 ### Docker
 
@@ -150,6 +186,7 @@ S3_FORCE_PATH_STYLE=true
 S3_ACCESS_KEY_ID=your-access-key
 S3_SECRET_ACCESS_KEY=your-secret-key
 ADMIN_PASSWORD_HASH=
+TRUST_PROXY=1
 ```
 
 `PUBLIC_ORIGIN` is the frontend's exact public HTTPS origin, with no internal port. Create the private production bucket before deployment, with versioning never enabled. Keep production storage separate from development. S3 credentials and the admin hash belong only on the backend. All application variables are runtime-only; disable Build Variable in Coolify. The production frontend has no environment variables or browser API URL. For storage configuration, see [Coolify persistent storage](https://coolify.io/docs/applications/configuration/persistent-storage).
@@ -201,7 +238,7 @@ node --test test/s3.integration.test.js
 
 These tests create and delete temporary buckets and require bucket creation/deletion and versioning-management permissions. Use an isolated test instance. The normal suite skips these integration tests unless `TEST_S3_ENDPOINT` is set.
 
-Password attempt limits use the direct peer IP. Behind a reverse proxy, clients currently share the proxy's rate-limit bucket because forwarded IP headers are not trusted. Limit upload concurrency and total storage at the deployment boundary; this MVP has a per-file limit but no global disk quota. Uploads are public and are not scanned for malware.
+Rate limits use the client IP. Behind a reverse proxy, set `TRUST_PROXY`; otherwise every visitor shares the proxy's rate-limit bucket. Limit upload concurrency and total storage at the deployment boundary; this MVP has a per-file limit but no global disk quota. Unless an upload password or IP allowlist is configured, uploads are public. Uploads are not scanned for malware.
 
 ## Chunked uploads
 
