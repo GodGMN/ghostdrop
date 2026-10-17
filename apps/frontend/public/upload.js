@@ -107,6 +107,16 @@ export async function upload(file, form, disposeThumbnail = () => {}) {
   const fingerprint = JSON.stringify(settings);
   const controls = [...form.querySelectorAll('input,select,button')];
   controls.forEach((element) => (element.disabled = true));
+  const restoreLabels = [
+    ['#upload-eyebrow', 'Uploading'],
+    ['#upload-state', `${bytes(file.size)} · uploading`],
+    ['#upload-note', 'Upload in progress'],
+  ].map(([selector, text]) => {
+    const element = form.querySelector(selector);
+    const previous = element.textContent;
+    element.textContent = text;
+    return () => (element.textContent = previous);
+  });
   const progress = document.querySelector('#upload-progress');
   progress.innerHTML =
     '<progress max="100" value="0" aria-label="Upload progress"></progress><p class="small-note" id="progress-label">Starting upload…</p><button type="button" id="cancel-upload" class="button secondary full">Cancel upload</button>';
@@ -210,6 +220,7 @@ export async function upload(file, form, disposeThumbnail = () => {}) {
     if (main.contains(form)) {
       delete form.dataset.uploading;
       controls.forEach((element) => (element.disabled = false));
+      restoreLabels.forEach((restore) => restore());
       progress.innerHTML = '';
     }
   }
