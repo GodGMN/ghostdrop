@@ -7,7 +7,7 @@ if (!process.stdin.isTTY) {
   if (!password || password.length > 256) throw new Error('Enter a password of 1–256 characters.');
   console.log(await hashPassword(password));
 } else {
-  process.stdout.write('Admin password (hidden): ');
+  process.stdout.write('Password to hash (hidden): ');
   process.stdin.setRawMode(true);
   process.stdin.resume();
   process.stdin.setEncoding('utf8');

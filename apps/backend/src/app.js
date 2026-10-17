@@ -9,12 +9,15 @@ import { registerAdminRoutes } from './admin.js';
 import { registerChunkRoutes, CHUNK_BYTES } from './chunks.js';
 import { recoverSessions } from './upload-sessions.js';
 import { createStorage } from './storage.js';
+import { createUploadAccess } from './upload-access.js';
 
 export function createApp(config) {
   const store = openStore(config.dataDir);
   store.storage = createStorage(store, config);
   const app = express();
   app.disable('x-powered-by');
+  app.set('trust proxy', config.trustProxy);
+  const uploadAccess = createUploadAccess(config);
   // Coolify can strip /api before forwarding. Accept both forms through the
   // same routes and security middleware, as the gimenodev API does.
   app.use((req, res, next) => {
@@ -49,11 +52,13 @@ export function createApp(config) {
     }
     next();
   });
+  app.use('/api/uploads', uploadAccess.guard);
   app.post('/api/uploads', async (req, res) => {
     const file = await receiveUpload(req, store, config, res);
     res.status(201).json(file);
   });
   app.use(express.json({ limit: '8kb' }));
+  uploadAccess.register(app);
   registerChunkRoutes(app, store, config);
   registerFileRoutes(app, store, config);
   const requireAdmin = registerAdminAuth(app, config);
