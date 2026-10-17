@@ -101,6 +101,28 @@ Behind a reverse proxy, set `TRUST_PROXY` so Ghostdrop sees the visitor's addres
 
 For production, build the two Docker images below, mount persistent private storage on the backend, and put the frontend behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
 
+### Docker Compose
+
+The quickest way to run Ghostdrop anywhere Docker runs. `deploy/docker-compose.yml` builds both apps from this checkout and puts [Caddy](https://caddyserver.com) in front of them, so `/api/*` reaches the backend and everything else the frontend on a single origin. Files and the database live in the `ghostdrop-data` volume.
+
+```sh
+cd deploy
+cp .env.example .env
+docker compose up -d --build
+```
+
+Open http://localhost:8080. For a public server, point DNS at the machine and set these in `deploy/.env`; Caddy then obtains and renews a TLS certificate automatically:
+
+```dotenv
+GHOSTDROP_SITE=drop.example.com
+HTTP_PORT=80
+HTTPS_PORT=443
+PUBLIC_ORIGIN=https://drop.example.com
+COOKIE_SECURE=true
+```
+
+Generate admin or upload password hashes with `docker compose run --rm -it backend node apps/backend/scripts/hash-password.js`. `TRUST_PROXY=1` is preset because Caddy is one proxy hop. If another proxy sits in front of Caddy, increase it and add that proxy to Caddy's [`trusted_proxies`](https://caddyserver.com/docs/caddyfile/options#trusted-proxies); Caddy otherwise replaces any incoming `X-Forwarded-For`, so clients cannot spoof their address. Back up the `ghostdrop-data` volume while the stack is stopped.
+
 ### Docker
 
 Both Dockerfiles use the repository root as their build context:
