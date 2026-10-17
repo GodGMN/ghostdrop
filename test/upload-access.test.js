@@ -46,13 +46,7 @@ test('the upload password protects every upload route but not downloads', async 
   assert.equal((await access(base, { Cookie })).unlocked, true);
   assert.equal((await startSession(base, { Cookie })).status, 201);
 
-  const body = new FormData();
-  body.append('file', new Blob(['shared']), 'shared.txt');
-  const uploaded = await fetch(`${base}/api/uploads`, {
-    method: 'POST',
-    headers: { Cookie },
-    body,
-  });
+  const uploaded = await upload(base, { headers: { Cookie } });
   assert.equal(uploaded.status, 201);
   const file = await uploaded.json();
   assert.equal((await fetch(`${base}/api/files/${file.id}/download`)).status, 200);

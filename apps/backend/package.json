@@ -1,6 +1,7 @@
 {
   "name": "@ghostdrop/backend",
   "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,7 +15,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
     "@aws-sdk/lib-storage": "^3.1146.0",
-    "busboy": "^1.6.0",
     "express": "^5.1.0"
   }
 }

@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fixture, upload } from './helpers.js';
-import http from 'node:http';
-import { setTimeout } from 'node:timers/promises';
 
 test('upload streams to private disk with hashed credentials and separate random tokens', async (t) => {
   const { base, store } = await fixture(t);
@@ -30,47 +28,19 @@ test('oversized and invalid uploads leave neither file bytes nor records', async
   assert.deepEqual(readdirSync(store.partialDir), []);
   assert.equal(store.db.prepare('SELECT count(*) AS n FROM files').get().n, 0);
 });
-test('cross-site uploads are rejected before file processing', async (t) => {
-  const { base } = await fixture(t);
-  const response = await fetch(`${base}/api/uploads`, {
-    method: 'POST',
-    headers: { Origin: 'https://unrelated.example' },
-  });
-  assert.equal(response.status, 403);
-});
-test('malformed multipart requests and duplicate files are rejected', async (t) => {
+test('cross-site uploads are rejected before a session starts', async (t) => {
   const { base, store } = await fixture(t);
-  assert.equal(
-    (await fetch(`${base}/api/uploads`, { method: 'POST', body: 'invalid' })).status,
-    400,
-  );
+  const response = await upload(base, { headers: { Origin: 'https://unrelated.example' } });
+  assert.equal(response.status, 403);
+  assert.equal(store.db.prepare('SELECT count(*) AS n FROM upload_sessions').get().n, 0);
+});
+test('the single-request multipart endpoint no longer exists', async (t) => {
+  const { base } = await fixture(t);
   const body = new FormData();
-  body.append('file', new Blob(['first']), 'first.txt');
-  body.append('file', new Blob(['second']), 'second.txt');
-  assert.equal((await fetch(`${base}/api/uploads`, { method: 'POST', body })).status, 400);
-  assert.deepEqual(readdirSync(store.filesDir), []);
-  assert.deepEqual(readdirSync(store.partialDir), []);
+  body.append('file', new Blob(['legacy']), 'legacy.txt');
+  assert.equal((await fetch(`${base}/api/uploads`, { method: 'POST', body })).status, 404);
 });
 test('a file exactly at the size limit is accepted', async (t) => {
   const { base } = await fixture(t, { maxFileBytes: 8 });
   assert.equal((await upload(base, { content: '12345678' })).status, 201);
-});
-test('interrupted uploads remove partial bytes', async (t) => {
-  const { base, store } = await fixture(t);
-  const request = http.request(`${base}/api/uploads`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'multipart/form-data; boundary=test-boundary' },
-  });
-  request.on('error', () => {});
-  request.write(
-    '--test-boundary\r\nContent-Disposition: form-data; name="file"; filename="partial.txt"\r\nContent-Type: text/plain\r\n\r\n' +
-      'x'.repeat(10000),
-  );
-  for (let i = 0; i < 50 && !store.activeUploads?.size; i++) await setTimeout(10);
-  assert.equal(store.activeUploads.size, 1);
-  request.destroy();
-  for (let i = 0; i < 50 && store.activeUploads.size; i++) await setTimeout(10);
-  assert.equal(store.activeUploads.size, 0);
-  assert.deepEqual(readdirSync(store.partialDir), []);
-  assert.deepEqual(readdirSync(store.filesDir), []);
 });

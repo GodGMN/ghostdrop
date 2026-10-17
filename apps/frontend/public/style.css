@@ -150,6 +150,9 @@ footer {
   padding: 28px 0 34px;
   letter-spacing: 0.15px;
 }
+footer a {
+  color: inherit;
+}
 .status {
   min-height: 20px;
   text-align: center;
