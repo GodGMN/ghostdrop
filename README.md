@@ -1,29 +1,56 @@
 # Ghostdrop
 
-Simple, temporary file sharing. A spiritual successor to Jirafeau, written from scratch.
+Simple, temporary, self-hosted file sharing. Drop a file, share a link, and it disappears after the time you choose or after its first download. A spiritual successor to [Jirafeau](https://gitlab.com/jirafeau/Jirafeau), written from scratch.
 
-## Development
+<p align="center">
+  <img src="docs/screenshots/upload.png" width="49%" alt="Choosing a file with expiry, password and one-time download options">
+  <img src="docs/screenshots/receipt.png" width="49%" alt="Receipt with share, direct download and private deletion links">
+  <img src="docs/screenshots/share.png" width="49%" alt="Sharing page with an image preview">
+  <img src="docs/screenshots/admin.png" width="49%" alt="Admin file list with search and storage totals">
+</p>
 
-Requires Node.js 24 or newer.
+## Features
+
+- **Expiring links**: one hour, one day, one week or 30 days.
+- **One-time downloads**, claimed atomically so two simultaneous requests can never both get the file.
+- **Password-protected files**, plus a private deletion link for every upload.
+- **Resumable uploads** in 512 KiB chunks that survive flaky connections and backend restarts, and pass through proxies with small body limits.
+- **Safe previews** for images and plain text; everything else, including HTML and SVG, is only ever downloaded.
+- **Optional upload restrictions**: an upload password, an IP allowlist, or both. Downloads stay public.
+- **Admin panel** with search by name, hash or link, storage totals, deletion and cleanup.
+- **Local disk or S3-compatible storage** (AWS, MinIO), a global storage cap, and no database server: metadata lives in SQLite.
+
+## Quick start
+
+With Docker:
 
 ```sh
-npm install
+git clone https://github.com/GodGMN/ghostdrop.git
+cd ghostdrop/deploy
 cp .env.example .env
-npm run dev
+docker compose up -d --build
 ```
 
-Open http://localhost:3000. `npm run dev` starts both apps and restarts each after its code changes. The frontend listens on `FRONTEND_PORT`, falling back to `PORT` or 3000; the API listens on `BACKEND_PORT`, defaulting to the next port. Use `npm start` without watchers. For LAN access, set `HOST=0.0.0.0` and `PUBLIC_ORIGIN` to the exact frontend URL you open in the browser.
+Open http://localhost:8080. To serve it on your own domain with automatic HTTPS, see [Docker Compose](#docker-compose). For development without Docker, see [Development](#development).
 
-This is an npm workspace monorepo. `apps/frontend/public` contains the browser UI; `apps/frontend/server.js` is its development server. `apps/backend/src` contains the Node/Express API and storage logic. Production deploys each app independently with its own Dockerfile. The production frontend serves static assets; Coolify routes `/api/*` directly to the backend. Both apps share one browser origin. The local development frontend proxies API requests so `npm run dev` also uses one origin.
+## Security model
 
-To run only one app from the repository root, use `npm run start:backend` or `npm run start:frontend`. Set `PORT` for the API and `FRONTEND_PORT` plus `BACKEND_URL` for the development frontend.
+What Ghostdrop protects:
 
-```sh
-npm test
-npm run check
-```
+- **Served files can't attack the site.** Downloads are sent as `attachment` with `application/octet-stream`, `nosniff` and a sandboxing Content Security Policy. Inline previews are limited to PNG, JPEG, GIF and WebP identified by their bytes, and plain text.
+- **One-time files are downloaded once.** The claim is a single atomic database update, and the stored bytes are removed before streaming begins.
+- **Passwords and tokens are never stored in plaintext.** File, admin and upload passwords are salted scrypt hashes; deletion and upload tokens are stored as SHA-256 hashes. Deletion tokens live in the URL fragment, so they never reach server logs.
+- **Cross-site requests are rejected.** Mutating requests must come from `PUBLIC_ORIGIN`; cookies are `HttpOnly` and `SameSite=Strict`; admin actions also need a CSRF token. Password attempts and upload starts are rate limited per client IP.
+- **Uploader IP addresses are not stored.**
 
-`npm run format` formats the source. Node 24 currently prints an experimental warning for its built-in SQLite module.
+What it does not do:
+
+- **No encryption.** File passwords control access; they do not encrypt anything. Whoever runs the server can read every file.
+- **Uploads are open by default.** Configure an [upload password or IP allowlist](#restricting-uploads) and `MAX_TOTAL_BYTES` for a public instance. Files are not scanned for malware.
+- **Behind a reverse proxy, rate limits need `TRUST_PROXY`**, otherwise every visitor shares the proxy's address.
+- **Deletion is not secure erasure**, and does not reach copies in your backups.
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Sharing files
 
@@ -39,17 +66,16 @@ Passwords control access to the bytes, without encrypting them. They are stored 
 
 One-time files are claimed atomically when a download is accepted. The stored file is unlinked before streaming from the open descriptor. Only the first concurrent request succeeds, and an interrupted accepted transfer still consumes the file. Metadata requests do not consume it; previews, HEAD downloads, and ranges are disabled. Range/resume downloads are currently unsupported for all files.
 
-## Storage
+## Restricting uploads
 
-SQLite metadata and uploaded files live in `DATA_DIR` (default `./data`), outside the public directory. Preserve this directory across restarts. The default upload limit is 100 MiB. Configure `MAX_FILE_BYTES` to change it.
+Uploads are open to anyone by default. Two optional restrictions limit who can upload; downloads, sharing pages and deletion links stay public either way.
 
-With `STORAGE_BACKEND=s3`, finalized file bytes go to S3-compatible storage instead. SQLite and resumable upload staging still live in `DATA_DIR`, which must remain persistent.
+- **Upload password.** Generate a hash with `npm run hash-password` and set it as `UPLOAD_PASSWORD_HASH`. The landing page then asks for the password before showing the drop zone. A correct password unlocks uploads in that browser for 12 hours. Attempts are rate limited like admin logins.
+- **IP allowlist.** Set `UPLOAD_ALLOWED_IPS` to a comma-separated list of addresses or CIDR ranges, for example `192.168.1.0/24,2001:db8::/32`. Other clients see an "uploads are restricted" page and every upload request returns 403.
 
-Runewire tracks the MVP tasks. See [AGENTS.md](AGENTS.md) for the workflow. Personal MCP credentials and `.env` are gitignored.
+When both are set, both apply. Upload sessions live in memory, so a restart asks for the password again.
 
-Expiry blocks new access immediately. A cleanup loop physically removes expired files at startup and every minute, retries pending deletions, removes orphaned completed uploads, and expires upload sessions after one hour without an acknowledged chunk. Expiring a completed session only removes its cached receipt; the shared file keeps its own expiration. An already-open download can finish after expiry. The process must be running for background cleanup to run.
-
-Run a single application process against each data directory. In-memory upload tracking and sessions are intentionally scoped to that process. Admin and file-access sessions are invalidated on restart; uploaded files and password hashes persist. Back up metadata and file bytes together while the application is stopped. File deletion also removes the SQLite record, but does not erase copies in external backups or guarantee secure erasure on the underlying disk.
+Behind a reverse proxy, set `TRUST_PROXY` so Ghostdrop sees the visitor's address instead of the proxy's. The allowlist and every rate limit depend on it. Use the number of proxies in front of the backend (`1` for Coolify, Traefik or the bundled Docker Compose setup), or their addresses (`loopback`, `uniquelocal` or CIDRs). Leave it unset when Node faces the internet directly: a trusted `X-Forwarded-For` header can be forged by anyone who reaches the backend without passing through the proxy. `TRUST_PROXY=true` is rejected for that reason.
 
 ## Admin
 
@@ -63,16 +89,15 @@ Set the result as `ADMIN_PASSWORD_HASH` in `.env`, then restart and open `/admin
 
 The panel lists files with size, content type, hash, creation and expiration dates, and access restrictions. Search by filename, full SHA-256, or share ID/link. It also shows disk usage, supports downloads and confirmed deletion, and runs cleanup for expired files and inactive partial uploads. Admin downloads bypass the file password but still consume one-time files. Uploader IP addresses are not stored.
 
-## Restricting uploads
+## Storage
 
-Uploads are open to anyone by default. Two optional restrictions limit who can upload; downloads, sharing pages and deletion links stay public either way.
+SQLite metadata and uploaded files live in `DATA_DIR` (default `./data`), outside the public directory. Preserve this directory across restarts. The default upload limit is 100 MiB per file. Configure `MAX_FILE_BYTES` to change it. Set `MAX_TOTAL_BYTES` to cap total storage: it counts stored files plus the declared size of unfinished uploads, and new uploads that would exceed it are refused with HTTP 507 until expired files are cleaned up.
 
-- **Upload password.** Generate a hash with `npm run hash-password` and set it as `UPLOAD_PASSWORD_HASH`. The landing page then asks for the password before showing the drop zone. A correct password unlocks uploads in that browser for 12 hours. Attempts are rate limited like admin logins.
-- **IP allowlist.** Set `UPLOAD_ALLOWED_IPS` to a comma-separated list of addresses or CIDR ranges, for example `192.168.1.0/24,2001:db8::/32`. Other clients see an "uploads are restricted" page and every upload request returns 403.
+With `STORAGE_BACKEND=s3`, finalized file bytes go to S3-compatible storage instead. SQLite and resumable upload staging still live in `DATA_DIR`, which must remain persistent.
 
-When both are set, both apply. Upload sessions live in memory, so a restart asks for the password again.
+Expiry blocks new access immediately. A cleanup loop physically removes expired files at startup and every minute, retries pending deletions, removes orphaned completed uploads, and expires upload sessions after one hour without an acknowledged chunk. Expiring a completed session only removes its cached receipt; the shared file keeps its own expiration. An already-open download can finish after expiry. The process must be running for background cleanup to run.
 
-Behind a reverse proxy, set `TRUST_PROXY` so Ghostdrop sees the visitor's address instead of the proxy's. The allowlist and every rate limit depend on it. Use the number of proxies in front of the backend (`1` for Coolify, Traefik or the bundled Docker Compose setup), or their addresses (`loopback`, `uniquelocal` or CIDRs). Leave it unset when Node faces the internet directly: a trusted `X-Forwarded-For` header can be forged by anyone who reaches the backend without passing through the proxy. `TRUST_PROXY=true` is rejected for that reason.
+Run a single application process against each data directory. In-memory upload tracking and sessions are intentionally scoped to that process. Admin and file-access sessions are invalidated on restart; uploaded files and password hashes persist. Back up metadata and file bytes together while the application is stopped. File deletion also removes the SQLite record, but does not erase copies in external backups or guarantee secure erasure on the underlying disk.
 
 ## Configuration
 
@@ -83,6 +108,7 @@ Behind a reverse proxy, set `TRUST_PROXY` so Ghostdrop sees the visitor's addres
 | `PUBLIC_ORIGIN`        | `http://localhost:3000` | Exact browser origin allowed for mutating requests     |
 | `DATA_DIR`             | `./data`                | Private database and upload storage                    |
 | `MAX_FILE_BYTES`       | `104857600`             | Maximum size of a single file, in bytes                |
+| `MAX_TOTAL_BYTES`      | Unlimited               | Cap on stored plus in-progress upload bytes            |
 | `ADMIN_PASSWORD_HASH`  | Empty                   | Generated scrypt hash; empty disables admin            |
 | `COOKIE_SECURE`        | `false`                 | Set `true` when serving through HTTPS                  |
 | `UPLOAD_PASSWORD_HASH` | Empty                   | Generated scrypt hash; empty leaves uploads open       |
@@ -160,7 +186,7 @@ Create two Dockerfile applications from the same private repository and branch `
 | Persistent volume   | None                        | `ghostdrop-data` mounted at `/app/data` |
 | Health check        | `/healthz`, port 80         | `/api/config`, port 3000                |
 
-Leave build/start commands empty. In Coolify's domain dialog, use host `drop.example.com`, frontend port `80` with no path, and backend port `3000` with path `/api/`. These ports are internal; visitors use normal HTTPS port 443. Leave the default path-prefix handling unchanged. The backend accepts `/config` and `/api/config`, just like the `gimenodev-landing` API accepts bare and prefixed paths. Every path goes through the same origin, authentication and CSRF checks. No custom labels are needed. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
+Leave build/start commands empty. In Coolify's domain dialog, use host `drop.example.com`, frontend port `80` with no path, and backend port `3000` with path `/api/`. These ports are internal; visitors use normal HTTPS port 443. Leave the default path-prefix handling unchanged. The backend accepts both `/config` and `/api/config`. Every path goes through the same origin, authentication and CSRF checks. No custom labels are needed. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
 
 Enable **Consistent Container Names** on the backend to stop the old instance before starting its replacement. Do not enable overlapping backend instances or share its data/S3 namespace with preview deployments. No specific backend hostname or frontend-to-backend network connection is required. Coolify's proxy must be able to reach both apps. Its [deployment settings](https://coolify.io/docs/applications/deployments/rolling-updates) describe stop-first behavior.
 
@@ -238,7 +264,7 @@ node --test test/s3.integration.test.js
 
 These tests create and delete temporary buckets and require bucket creation/deletion and versioning-management permissions. Use an isolated test instance. The normal suite skips these integration tests unless `TEST_S3_ENDPOINT` is set.
 
-Rate limits use the client IP. Behind a reverse proxy, set `TRUST_PROXY`; otherwise every visitor shares the proxy's rate-limit bucket. Limit upload concurrency and total storage at the deployment boundary; this MVP has a per-file limit but no global disk quota. Unless an upload password or IP allowlist is configured, uploads are public. Uploads are not scanned for malware.
+Rate limits use the client IP. Behind a reverse proxy, set `TRUST_PROXY`; otherwise every visitor shares the proxy's rate-limit bucket. Set `MAX_TOTAL_BYTES` so public uploads cannot fill the disk. Unless an upload password or IP allowlist is configured, uploads are public. Uploads are not scanned for malware.
 
 ## Chunked uploads
 
@@ -260,9 +286,30 @@ Finalization runs in the background and the browser polls its status with small 
 
 All session requests after initialization require `X-Upload-Token`. IDs/tokens are independent random 192-bit values; only a hash of the token is stored. Passwords are hashed during initialization. The private deletion token is derived from the upload secret; cached receipts do not store that token in plaintext. Sessions are capped at 1000, and initialization attempts are rate-limited.
 
-The old `POST /api/uploads` multipart endpoint remains available for compatibility. It sends a whole file in one request and requires a proxy body limit above that file's size. The browser never uses it.
-
 Chunking avoids increasing nginx's request-body limit; it cannot bypass a proxy that rejects PUT requests, has a limit below 512 KiB, or cuts off a stalled individual request. Default proxy buffering only buffers a small chunk. The browser has a two-minute timeout per chunk. Uploads use one chunk request at a time, so high network latency reduces throughput. Final hashing adds one disk read of the completed file. This is a single-process implementation; file bytes use bounded buffers rather than growing server memory with the full file size.
+
+## Development
+
+Requires Node.js 24 or newer.
+
+```sh
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Open http://localhost:3000. `npm run dev` starts both apps and restarts each after its code changes. The frontend listens on `FRONTEND_PORT`, falling back to `PORT` or 3000; the API listens on `BACKEND_PORT`, defaulting to the next port. Use `npm start` without watchers. For LAN access, set `HOST=0.0.0.0` and `PUBLIC_ORIGIN` to the exact frontend URL you open in the browser.
+
+This is an npm workspace monorepo. `apps/frontend/public` contains the browser UI; `apps/frontend/server.js` is its development server. `apps/backend/src` contains the Node/Express API and storage logic. Production deploys each app independently with its own Dockerfile. The production frontend serves static assets; Coolify routes `/api/*` directly to the backend. Both apps share one browser origin. The local development frontend proxies API requests so `npm run dev` also uses one origin.
+
+To run only one app from the repository root, use `npm run start:backend` or `npm run start:frontend`. Set `PORT` for the API and `FRONTEND_PORT` plus `BACKEND_URL` for the development frontend.
+
+```sh
+npm test
+npm run check
+```
+
+`npm run format` formats the source. Node 24 currently prints an experimental warning for its built-in SQLite module.
 
 ## Manual verification
 
@@ -277,4 +324,10 @@ Chunking avoids increasing nginx's request-body limit; it cannot bypass a proxy 
 9. Check the landing, settings, receipt, download, and admin pages on desktop and a narrow mobile viewport. Use keyboard navigation for file selection and controls.
 10. Upload a file larger than 1 MiB through a proxy with a 1 MiB request-body cap. Confirm file requests never exceed 512 KiB and downloaded bytes match. Interrupt a chunk or lose an acknowledgement, then retry; confirm previously accepted bytes are not duplicated. Restart the backend mid-upload and resume from the stored offset.
 
-The automated suite exercises storage persistence, upload validation/cleanup, password enforcement, one-time concurrency, physical deletion, expiry, safe previews, admin authorization/search/cleanup, idempotent chunking, cancellation, and restart recovery using temporary data directories. A proxy fixture enforces a 1 MiB body limit, rejects a whole-file upload, then accepts an 8 MiB file via 17 bounded chunks with identical stored bytes. Its timing diagnostic is a local correctness sanity check, not a production throughput benchmark.
+The automated suite exercises storage persistence, upload validation/cleanup, password enforcement, one-time concurrency, physical deletion, expiry, safe previews, admin authorization/search/cleanup, idempotent chunking, cancellation, and restart recovery using temporary data directories. A proxy fixture enforces a 1 MiB body limit and accepts an 8 MiB file via 17 bounded chunks with identical stored bytes. Its timing diagnostic is a local correctness sanity check, not a production throughput benchmark.
+
+## License
+
+Ghostdrop is free software under the [GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified version as a public service, the AGPL requires you to offer its source code to your users; the footer's **Source** link is there to make that easy.
+
+Made by [gimeno.dev](https://gimeno.dev).

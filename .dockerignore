@@ -15,6 +15,3 @@
 !apps/frontend/public/**
 !apps/frontend/nginx.conf
 
-# Design explorations are not part of the deployed application.
-apps/frontend/public/mocks/
-apps/frontend/public/mocks/**
