@@ -1,6 +1,5 @@
 import express from 'express';
 import { openStore } from './store.js';
-import { receiveUpload } from './upload.js';
 import { httpError } from './security.js';
 import { registerFileRoutes } from './files.js';
 import { cleanup } from './lifecycle.js';
@@ -19,7 +18,7 @@ export function createApp(config) {
   app.set('trust proxy', config.trustProxy);
   const uploadAccess = createUploadAccess(config);
   // Coolify can strip /api before forwarding. Accept both forms through the
-  // same routes and security middleware, as the gimenodev API does.
+  // same routes and security middleware.
   app.use((req, res, next) => {
     if (!/^\/api(?:\/|\?|$)/.test(req.url)) req.url = `/api${req.url}`;
     next();
@@ -53,10 +52,6 @@ export function createApp(config) {
     next();
   });
   app.use('/api/uploads', uploadAccess.guard);
-  app.post('/api/uploads', async (req, res) => {
-    const file = await receiveUpload(req, store, config, res);
-    res.status(201).json(file);
-  });
   app.use(express.json({ limit: '8kb' }));
   uploadAccess.register(app);
   registerChunkRoutes(app, store, config);

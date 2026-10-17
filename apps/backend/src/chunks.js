@@ -241,6 +241,16 @@ async function finalize(store, id, secret, signal) {
     if (!signal.aborted) console.error('Upload finalization failed:', err.message);
   }
 }
+// Stored files plus the declared size of every unfinished upload, so concurrent
+// uploads cannot jointly overrun the limit.
+function committedBytes(store) {
+  return store.db
+    .prepare(
+      "SELECT (SELECT coalesce(sum(size), 0) FROM files) + (SELECT coalesce(sum(size), 0) FROM upload_sessions WHERE state IN ('uploading', 'finalizing')) AS bytes",
+    )
+    .get().bytes;
+}
+const storageFull = () => httpError(507, 'This server is out of upload space. Try again later.');
 export function registerChunkRoutes(app, store, config) {
   const limit = rateLimiter(60);
   app.post('/api/uploads/sessions', async (req, res) => {
@@ -299,6 +309,8 @@ export function registerChunkRoutes(app, store, config) {
       throw httpError(409, 'This upload ID is already in use.');
     if (store.db.prepare('SELECT count(*) AS count FROM upload_sessions').get().count >= 1000)
       throw httpError(503, 'Too many active uploads. Try again later.');
+    if (config.maxTotalBytes && committedBytes(store) + input.size > config.maxTotalBytes)
+      throw storageFull();
     await operation(store, id, async (signal) => {
       const passwordHash = password ? await hashPassword(password) : null;
       if (req.aborted || res.destroyed || signal.aborted) throw httpError(400, 'Upload cancelled.');
@@ -307,6 +319,12 @@ export function registerChunkRoutes(app, store, config) {
       if (req.aborted || res.destroyed || signal.aborted) {
         await rm(join(store.partialDir, id), { force: true });
         throw httpError(400, 'Upload cancelled.');
+      }
+      // Re-check synchronously before reserving: other sessions may have been
+      // created while this one hashed its password.
+      if (config.maxTotalBytes && committedBytes(store) + input.size > config.maxTotalBytes) {
+        await rm(join(store.partialDir, id), { force: true });
+        throw storageFull();
       }
       const now = Date.now();
       const destination = store.storage.destination(id);

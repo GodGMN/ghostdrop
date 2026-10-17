@@ -96,6 +96,7 @@ export function loadConfig(env = process.env) {
     host: env.HOST || '127.0.0.1',
     dataDir: resolve(env.DATA_DIR || './data'),
     maxFileBytes: integer(env.MAX_FILE_BYTES, 100 * 1024 * 1024, 'MAX_FILE_BYTES'),
+    maxTotalBytes: env.MAX_TOTAL_BYTES ? integer(env.MAX_TOTAL_BYTES, 0, 'MAX_TOTAL_BYTES') : 0,
     origin: origin.origin,
     adminPasswordHash: env.ADMIN_PASSWORD_HASH || '',
     uploadPasswordHash: env.UPLOAD_PASSWORD_HASH || '',

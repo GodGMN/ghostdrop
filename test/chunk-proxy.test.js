@@ -52,12 +52,6 @@ test('an 8 MiB file uploads through an unchanged 1 MiB body-limit proxy', async 
   t.after(() => new Promise((resolve) => proxy.close(resolve)));
   const proxyBase = `http://127.0.0.1:${proxy.address().port}`;
   const content = Buffer.alloc(8 * 1024 * 1024 + 19, 137);
-  const legacy = new FormData();
-  legacy.append('file', new Blob([content]), 'large.bin');
-  assert.equal(
-    (await fetch(`${proxyBase}/api/uploads`, { method: 'POST', body: legacy })).status,
-    413,
-  );
   const start = performance.now();
   const session = await init(proxyBase, { size: content.length });
   for (let offset = 0; offset < content.length; offset += CHUNK_BYTES) {
