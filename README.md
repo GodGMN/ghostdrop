@@ -23,13 +23,13 @@ Simple, temporary, self-hosted file sharing. Drop a file, share a link, and it d
 
 ## Quick start
 
-With Docker:
+With Docker, no checkout needed:
 
 ```sh
-git clone https://github.com/GodGMN/ghostdrop.git
-cd ghostdrop/deploy
+mkdir ghostdrop && cd ghostdrop
+curl -fsSL https://github.com/GodGMN/ghostdrop/releases/latest/download/ghostdrop-deploy.tar.gz | tar xz
 cp .env.example .env
-docker compose up -d --build
+docker compose up -d
 ```
 
 Open http://localhost:8080. To serve it on your own domain with automatic HTTPS, see [Docker Compose](#docker-compose). For development without Docker, see [Development](#development).
@@ -126,16 +126,19 @@ Run a single application process against each data directory. In-memory upload t
 | `S3_SECRET_ACCESS_KEY` | SDK credential chain    | Server-side secret access key                          |
 | `S3_SESSION_TOKEN`     | Empty                   | Optional temporary AWS credential token                |
 
-For production, build the two Docker images below, mount persistent private storage on the backend, and put the frontend behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
+For production, use the two published Docker images or build them as described below, mount persistent private storage on the backend, and put the frontend behind an HTTPS reverse proxy. Set `PUBLIC_ORIGIN` to the external HTTPS origin and `COOKIE_SECURE=true`. Browser file requests are at most 512 KiB, so nginx's default 1 MiB request-body limit can stay unchanged even when `MAX_FILE_BYTES` is much larger. No nginx configuration is required when serving Node directly. A mismatched origin is rejected. Do not serve `DATA_DIR` as static content.
 
 ### Docker Compose
 
-The quickest way to run Ghostdrop anywhere Docker runs. `deploy/docker-compose.yml` builds both apps from this checkout and puts [Caddy](https://caddyserver.com) in front of them, so `/api/*` reaches the backend and everything else the frontend on a single origin. Files and the database live in the `ghostdrop-data` volume.
+The quickest way to run Ghostdrop anywhere Docker runs. `deploy/docker-compose.yml` runs the published images and puts [Caddy](https://caddyserver.com) in front of them, so `/api/*` reaches the backend and everything else the frontend on a single origin. Files and the database live in the `ghostdrop-data` volume.
+
+Every [release](https://github.com/GodGMN/ghostdrop/releases) attaches `ghostdrop-deploy.tar.gz` with the compose file, its `Caddyfile` and `.env.example`:
 
 ```sh
-cd deploy
+mkdir ghostdrop && cd ghostdrop
+curl -fsSL https://github.com/GodGMN/ghostdrop/releases/latest/download/ghostdrop-deploy.tar.gz | tar xz
 cp .env.example .env
-docker compose up -d --build
+docker compose up -d
 ```
 
 Open http://localhost:8080. For a public server, point DNS at the machine and set these in `deploy/.env`; Caddy then obtains and renews a TLS certificate automatically:
@@ -150,9 +153,20 @@ COOKIE_SECURE=true
 
 Generate admin or upload password hashes with `docker compose run --rm -it backend node apps/backend/scripts/hash-password.js`. `TRUST_PROXY=1` is preset because Caddy is one proxy hop. If another proxy sits in front of Caddy, increase it and add that proxy to Caddy's [`trusted_proxies`](https://caddyserver.com/docs/caddyfile/options#trusted-proxies); Caddy otherwise replaces any incoming `X-Forwarded-For`, so clients cannot spoof their address. Back up the `ghostdrop-data` volume while the stack is stopped.
 
+`GHOSTDROP_VERSION` in `.env` selects the image tag. The default `latest` follows the newest release; pin an exact version such as `0.1.0`, or a minor line such as `0.1` to receive only its patch releases. Before 1.0, a new minor version may require configuration or data changes, so read the [changelog](CHANGELOG.md) before upgrading. To upgrade, back up the volume, then run `docker compose pull && docker compose up -d`.
+
+In a checkout, `deploy/docker-compose.override.yml` is loaded automatically and builds both apps from source instead: run `docker compose up -d --build` in `deploy/`. Use `docker compose -f docker-compose.yml up -d` to run the published images from a checkout.
+
 ### Docker
 
-Both Dockerfiles use the repository root as their build context:
+Released images are published to the GitHub Container Registry for `linux/amd64` and `linux/arm64`:
+
+```sh
+docker pull ghcr.io/godgmn/ghostdrop-backend:latest
+docker pull ghcr.io/godgmn/ghostdrop-frontend:latest
+```
+
+Each release is tagged with its exact version (`0.1.0`), its minor line (`0.1`) and `latest`. To build the images yourself, note that both Dockerfiles use the repository root as their build context:
 
 ```sh
 docker build -f apps/backend/Dockerfile -t ghostdrop-backend .
@@ -187,7 +201,7 @@ Create two Dockerfile applications from the public repository `https://github.co
 | Persistent volume   | None                        | `ghostdrop-data` mounted at `/app/data` |
 | Health check        | `/healthz`, port 80         | `/api/config`, port 3000                |
 
-Leave build/start commands empty. In Coolify's domain dialog, use host `drop.example.com`, frontend port `80` with no path, and backend port `3000` with path `/api/`. These ports are internal; visitors use normal HTTPS port 443. Leave the default path-prefix handling unchanged. The backend accepts both `/config` and `/api/config`. Every path goes through the same origin, authentication and CSRF checks. No custom labels are needed. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
+Alternatively, create two **Docker Image** applications from `ghcr.io/godgmn/ghostdrop-frontend` and `ghcr.io/godgmn/ghostdrop-backend` with a pinned tag, keeping the remaining settings. Leave build/start commands empty. In Coolify's domain dialog, use host `drop.example.com`, frontend port `80` with no path, and backend port `3000` with path `/api/`. These ports are internal; visitors use normal HTTPS port 443. Leave the default path-prefix handling unchanged. The backend accepts both `/config` and `/api/config`. Every path goes through the same origin, authentication and CSRF checks. No custom labels are needed. See [Coolify path routing](https://coolify.io/docs/core/networking/domains).
 
 Enable **Consistent Container Names** on the backend to stop the old instance before starting its replacement. Do not enable overlapping backend instances or share its data/S3 namespace with preview deployments. No specific backend hostname or frontend-to-backend network connection is required. Coolify's proxy must be able to reach both apps. Its [deployment settings](https://coolify.io/docs/applications/deployments/rolling-updates) describe stop-first behavior.
 
