@@ -29,7 +29,7 @@ npm test
 npm run check
 ```
 
-`npm test` runs the Node test suite, which uses temporary data directories and needs no external services. `npm run check` validates JavaScript syntax and Prettier formatting; `npm run format` fixes formatting. Changes to S3 storage should also pass the [S3 integration suite](README.md#s3-and-minio) against a disposable MinIO instance.
+`npm test` runs the Node test suite, which uses temporary data directories and needs no external services. `npm run check` validates JavaScript syntax and Prettier formatting; `npm run format` fixes formatting. CI runs both, and builds the Docker images, on every pull request. Changes to S3 storage should also pass the [S3 integration suite](README.md#s3-and-minio) against a disposable MinIO instance.
 
 ## What a pull request needs
 
@@ -38,7 +38,7 @@ A pull request is ready for review when:
 1. It does one thing. Unrelated fixes, refactors and formatting changes go in separate pull requests.
 2. `npm test` and `npm run check` pass.
 3. New behavior and bug fixes come with tests. Security-relevant code (access control, one-time claims, deletion, uploads) is not merged without them.
-4. User-facing behavior and configuration changes are reflected in the README. New UI copy has a key in every catalog in `apps/frontend/public/i18n.js`; `npm test` enforces this.
+4. User-facing behavior and configuration changes are reflected in the README and get an entry under **Unreleased** in [CHANGELOG.md](CHANGELOG.md). New UI copy has a key in every catalog in `apps/frontend/public/i18n.js`; `npm test` enforces this.
 5. The description explains why the change is needed, links the issue it addresses, and lists how you verified it manually. The [manual verification](README.md#manual-verification) steps are a good starting point.
 6. No secrets, personal configuration or generated data are committed.
 
@@ -59,6 +59,16 @@ Ghostdrop itself is developed with AI coding assistants, so using them is fine. 
 - **Keep it small and reviewable.** Large pull requests that rewrite or reformat many files, or that mix unrelated changes, will be closed without review, whoever or whatever wrote them.
 - **No unattended agents.** Pull requests, issues or comments generated and submitted automatically, without a human reviewing them first, will be closed, and repeat submitters may be blocked.
 - **Verify claims.** Bug reports and security reports must be reproduced by you. Do not submit unverified findings from automated scanners or AI tools.
+
+## Releases
+
+Maintainers cut releases from `main`:
+
+1. Move the **Unreleased** entries in `CHANGELOG.md` under a new version heading with today's date, and update the comparison links at the bottom.
+2. Set the same version in `package.json` with `npm version <version> --no-git-tag-version`, so `package-lock.json` follows.
+3. Merge that change, then tag the merge commit and push the tag: `git tag v<version> && git push origin v<version>`.
+
+The release workflow checks that the tag matches `package.json` and has a changelog entry, runs CI, publishes the images to GHCR and creates the GitHub release with the deployment bundle. A tag with a suffix such as `v0.2.0-rc.1` creates a pre-release and does not move `latest`.
 
 ## License
 

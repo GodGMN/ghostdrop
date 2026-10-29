@@ -1,12 +1,12 @@
 # Self-hosted Ghostdrop: backend, frontend and a Caddy reverse proxy that serves
 # both on one origin. Usage: cp .env.example .env, edit it, docker compose up -d
+# Uses the published images. In a checkout, docker-compose.override.yml builds
+# from source instead.
 name: ghostdrop
 
 services:
   backend:
-    build:
-      context: ..
-      dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/godgmn/ghostdrop-backend:${GHOSTDROP_VERSION:-latest}
     restart: unless-stopped
     environment:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
@@ -30,9 +30,7 @@ services:
       - ghostdrop-data:/app/data
 
   frontend:
-    build:
-      context: ..
-      dockerfile: apps/frontend/Dockerfile
+    image: ghcr.io/godgmn/ghostdrop-frontend:${GHOSTDROP_VERSION:-latest}
     restart: unless-stopped
 
   caddy:

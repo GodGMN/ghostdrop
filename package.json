@@ -12,8 +12,8 @@
     "start": "node --env-file-if-exists=.env scripts/dev.js",
     "test": "node --test test/*.test.js",
     "check": "node scripts/check.js && npm run format:check",
-    "format": "prettier --write apps scripts test package.json README.md CONTRIBUTING.md .prettierrc.json",
-    "format:check": "prettier --check apps scripts test package.json README.md CONTRIBUTING.md .prettierrc.json",
+    "format": "prettier --write apps scripts test package.json README.md CONTRIBUTING.md CHANGELOG.md SECURITY.md .prettierrc.json",
+    "format:check": "prettier --check apps scripts test package.json README.md CONTRIBUTING.md CHANGELOG.md SECURITY.md .prettierrc.json",
     "start:backend": "node --env-file-if-exists=.env apps/backend/src/server.js",
     "start:frontend": "node --env-file-if-exists=.env apps/frontend/server.js",
     "hash-password": "node apps/backend/scripts/hash-password.js"

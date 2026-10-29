@@ -1,0 +1,18 @@
+# Loaded automatically next to docker-compose.yml in a checkout: builds both
+# apps from this source tree instead of pulling the published images. The
+# release bundle leaves this file out. To use published images from a checkout:
+# docker compose -f docker-compose.yml up -d
+services:
+  backend:
+    image: ghostdrop-backend:local
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    pull_policy: build
+
+  frontend:
+    image: ghostdrop-frontend:local
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+    pull_policy: build
