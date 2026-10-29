@@ -175,7 +175,7 @@ Set the resulting hash as `ADMIN_PASSWORD_HASH` on the backend. Admin access rem
 
 ### Coolify: two applications
 
-Create two Dockerfile applications from the same private repository and branch `main`. Use these settings:
+Create two Dockerfile applications from the public repository `https://github.com/GodGMN/ghostdrop` (or your fork), both on branch `main`. Use these settings:
 
 | Setting             | Frontend                    | Backend                                 |
 | ------------------- | --------------------------- | --------------------------------------- |
@@ -329,6 +329,10 @@ UI copy lives in `apps/frontend/public/i18n.js`. Add a key to every catalog ther
 11. Open the site with a Spanish browser locale, then with an English one, and with `?lang=es`. Confirm the footer selector, every page, dates, file sizes and API error messages (wrong password, unknown file) switch language, that the choice survives a reload, and that changing language mid-form keeps the selected file and settings.
 
 The automated suite exercises storage persistence, upload validation/cleanup, password enforcement, one-time concurrency, physical deletion, expiry, safe previews, admin authorization/search/cleanup, idempotent chunking, cancellation, and restart recovery using temporary data directories. A proxy fixture enforces a 1 MiB body limit and accepts an 8 MiB file via 17 bounded chunks with identical stored bytes. Its timing diagnostic is a local correctness sanity check, not a production throughput benchmark.
+
+## Contributing
+
+Bug reports, fixes and small improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, including its policy on AI-assisted contributions.
 
 ## License
 
