@@ -532,21 +532,29 @@ export function applyLanguage(code) {
   if (typeof document !== 'undefined') {
     document.documentElement.lang = languageTag();
     applyTranslations(document);
-    const select = document.querySelector('#language');
-    if (select) select.value = current;
+    for (const button of document.querySelectorAll('#language button'))
+      button.setAttribute('aria-pressed', String(button.value === current));
   }
   for (const listener of listeners) listener(current);
   return current;
 }
 
 export function initLanguage() {
-  const select = document.querySelector('#language');
-  if (select) {
-    select.innerHTML = languages
-      .map(({ code, label }) => `<option value="${code}">${label}</option>`)
-      .join('');
-    select.onchange = () => applyLanguage(select.value);
-    select.hidden = false;
+  const picker = document.querySelector('#language');
+  if (picker) {
+    picker.insertAdjacentHTML(
+      'beforeend',
+      languages
+        .map(
+          ({ code, tag, label }) =>
+            `<button type="button" value="${code}" lang="${tag}">${label}</button>`,
+        )
+        .join(''),
+    );
+    picker.onclick = ({ target }) => {
+      if (target.closest('button')) applyLanguage(target.closest('button').value);
+    };
+    picker.hidden = false;
   }
   return applyLanguage(resolveLanguage());
 }

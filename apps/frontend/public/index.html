@@ -68,16 +68,20 @@
           <span data-i18n="footer.tagline">Drop a file. Share a link. Let it disappear.</span> ·
           <a href="https://github.com/GodGMN/ghostdrop" data-i18n="footer.source">Source</a>
         </p>
-        <label class="language-picker">
-          <span class="visually-hidden" data-i18n="language.label">Language</span>
+        <div
+          class="language-picker"
+          id="language"
+          role="group"
+          data-i18n-label="language.label"
+          hidden
+        >
           <svg class="language-icon" viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="8" cy="8" r="6.25" />
             <path
               d="M1.75 8h12.5M8 1.75c1.7 1.75 2.6 3.8 2.6 6.25S9.7 12.5 8 14.25 5.4 10.5 5.4 8 6.3 3.5 8 1.75Z"
             />
           </svg>
-          <select id="language" hidden></select>
-        </label>
+        </div>
       </footer>
     </div>
   </body>
