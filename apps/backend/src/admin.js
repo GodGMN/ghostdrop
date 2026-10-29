@@ -7,16 +7,16 @@ import { httpError } from './security.js';
 function pagination(value, fallback, max) {
   const number = value === undefined ? fallback : Number(value);
   if (!Number.isSafeInteger(number) || number < 0 || number > max)
-    throw httpError(400, 'Invalid pagination.');
+    throw httpError(400, 'Invalid pagination.', 'invalid_pagination');
   return number;
 }
 export function registerAdminRoutes(app, store, requireAdmin, runCleanup) {
   app.get('/api/admin/files', requireAdmin, (req, res) => {
     const limit = pagination(req.query.limit, 25, 100);
     const offset = pagination(req.query.offset, 0, Number.MAX_SAFE_INTEGER);
-    if (!limit) throw httpError(400, 'Invalid pagination.');
+    if (!limit) throw httpError(400, 'Invalid pagination.', 'invalid_pagination');
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-    if (search.length > 500) throw httpError(400, 'The search is too long.');
+    if (search.length > 500) throw httpError(400, 'The search is too long.', 'search_too_long');
     const by = req.query.by || 'name';
     let where = '1 = 1',
       values = [];
@@ -25,7 +25,8 @@ export function registerAdminRoutes(app, store, requireAdmin, runCleanup) {
         where = "name LIKE ? ESCAPE '\\'";
         values = [`%${search.replace(/[\\%_]/g, (c) => '\\' + c)}%`];
       } else if (by === 'hash') {
-        if (!/^[a-f0-9]{64}$/i.test(search)) throw httpError(400, 'Enter a complete SHA-256 hash.');
+        if (!/^[a-f0-9]{64}$/i.test(search))
+          throw httpError(400, 'Enter a complete SHA-256 hash.', 'invalid_hash');
         where = 'sha256 = ?';
         values = [search.toLowerCase()];
       } else if (by === 'link') {
@@ -35,10 +36,14 @@ export function registerAdminRoutes(app, store, requireAdmin, runCleanup) {
           id = url.pathname.split('/')[2];
         } catch {}
         if (!/^[A-Za-z0-9_-]{32}$/.test(id))
-          throw httpError(400, 'Enter a share ID or a Ghostdrop file link.');
+          throw httpError(
+            400,
+            'Enter a share ID or a Ghostdrop file link.',
+            'invalid_file_reference',
+          );
         where = 'id = ?';
         values = [id];
-      } else throw httpError(400, 'Choose a valid search type.');
+      } else throw httpError(400, 'Choose a valid search type.', 'invalid_search_type');
     }
     const records = store.db
       .prepare(
@@ -88,7 +93,7 @@ export function registerAdminRoutes(app, store, requireAdmin, runCleanup) {
   });
   app.delete('/api/admin/files/:id', requireAdmin, async (req, res) => {
     if (!store.db.prepare('SELECT id FROM files WHERE id = ?').get(req.params.id))
-      throw httpError(404, 'This file is no longer available.');
+      throw httpError(404, 'This file is no longer available.', 'file_unavailable');
     await deleteFile(store, req.params.id);
     res.json({ deleted: true });
   });

@@ -29,9 +29,9 @@ function authorizedSession(req, store) {
   const session = uploadSession(store, req.params.id);
   const secret = req.headers['x-upload-token'];
   if (!session || !validToken(secret) || !equal(digest(secret), session.token_hash))
-    throw httpError(404, 'Upload session not found.');
+    throw httpError(404, 'Upload session not found.', 'upload_session_not_found');
   if (session.state === 'cancelled' || session.updated_at <= Date.now() - SESSION_IDLE_MS)
-    throw httpError(410, 'This upload session has expired. Start again.');
+    throw httpError(410, 'This upload session has expired. Start again.', 'upload_session_expired');
   return session;
 }
 function summary(session, secret) {
@@ -53,7 +53,8 @@ function summary(session, secret) {
   };
 }
 function operation(store, id, work) {
-  if (store.uploadOperations.has(id)) throw httpError(409, 'This upload is busy. Try again.');
+  if (store.uploadOperations.has(id))
+    throw httpError(409, 'This upload is busy. Try again.', 'upload_busy');
   const controller = new AbortController();
   const entry = { controller, promise: null };
   store.uploadOperations.set(id, entry);
@@ -74,9 +75,9 @@ function operation(store, id, work) {
 }
 function readChunk(req, signal) {
   if (req.headers['content-type']?.split(';')[0] !== 'application/octet-stream')
-    throw httpError(415, 'Send raw file bytes.');
+    throw httpError(415, 'Send raw file bytes.', 'send_raw_bytes');
   if (Number(req.headers['content-length']) > CHUNK_BYTES)
-    throw httpError(413, 'The upload chunk is too large.');
+    throw httpError(413, 'The upload chunk is too large.', 'chunk_too_large');
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
@@ -96,20 +97,21 @@ function readChunk(req, signal) {
       reject(error);
     }
     function aborted() {
-      fail(httpError(400, 'The chunk was interrupted. Retry it.'));
+      fail(httpError(400, 'The chunk was interrupted. Retry it.', 'chunk_interrupted'));
     }
     function cancel() {
-      fail(httpError(410, 'Upload cancelled.'));
+      fail(httpError(410, 'Upload cancelled.', 'upload_cancelled'));
       req.destroy();
     }
     function data(chunk) {
       size += chunk.length;
-      if (size > CHUNK_BYTES) fail(httpError(413, 'The upload chunk is too large.'));
+      if (size > CHUNK_BYTES)
+        fail(httpError(413, 'The upload chunk is too large.', 'chunk_too_large'));
       else chunks.push(chunk);
     }
     function end() {
       cleanup();
-      if (!size) reject(httpError(400, 'The chunk is empty.'));
+      if (!size) reject(httpError(400, 'The chunk is empty.', 'chunk_empty'));
       else resolve(Buffer.concat(chunks, size));
     }
     req.on('data', data);
@@ -123,15 +125,16 @@ function readChunk(req, signal) {
 async function appendChunk(store, id, offset, body, signal) {
   const session = uploadSession(store, id);
   if (session.state !== 'uploading' || signal.aborted)
-    throw httpError(409, 'This upload is not accepting chunks.');
-  if (offset > session.offset) throw httpError(409, 'The chunk offset is ahead of the upload.');
+    throw httpError(409, 'This upload is not accepting chunks.', 'upload_not_accepting');
+  if (offset > session.offset)
+    throw httpError(409, 'The chunk offset is ahead of the upload.', 'chunk_offset_ahead');
   if (offset + body.length > session.size)
-    throw httpError(413, 'The chunk exceeds the declared file size.');
+    throw httpError(413, 'The chunk exceeds the declared file size.', 'chunk_exceeds_size');
   const handle = await open(join(store.partialDir, id), 'r+');
   try {
     if (offset < session.offset) {
       if (offset + body.length > session.offset)
-        throw httpError(409, 'The chunk overlaps unacknowledged bytes.');
+        throw httpError(409, 'The chunk overlaps unacknowledged bytes.', 'chunk_overlap');
       const existing = Buffer.alloc(body.length);
       let read = 0;
       while (read < existing.length) {
@@ -140,7 +143,11 @@ async function appendChunk(store, id, offset, body, signal) {
         read += result.bytesRead;
       }
       if (read !== body.length || !existing.equals(body))
-        throw httpError(409, 'The retried chunk does not match the stored bytes.');
+        throw httpError(
+          409,
+          'The retried chunk does not match the stored bytes.',
+          'chunk_mismatch',
+        );
       return session;
     }
     await handle.truncate(session.offset);
@@ -233,9 +240,7 @@ async function finalize(store, id, secret, signal) {
   } catch (err) {
     const current = uploadSession(store, id);
     if (current?.state === 'finalizing') {
-      store.db
-        .prepare('UPDATE upload_sessions SET error = ? WHERE id = ?')
-        .run('The file could not be saved. Try again.', id);
+      store.db.prepare('UPDATE upload_sessions SET error = ? WHERE id = ?').run('save_failed', id);
       await recoverSession(store, current);
     }
     if (!signal.aborted) console.error('Upload finalization failed:', err.message);
@@ -250,7 +255,8 @@ function committedBytes(store) {
     )
     .get().bytes;
 }
-const storageFull = () => httpError(507, 'This server is out of upload space. Try again later.');
+const storageFull = () =>
+  httpError(507, 'This server is out of upload space. Try again later.', 'storage_full');
 export function registerChunkRoutes(app, store, config) {
   const limit = rateLimiter(60);
   app.post('/api/uploads/sessions', async (req, res) => {
@@ -263,9 +269,9 @@ export function registerChunkRoutes(app, store, config) {
       !Number.isSafeInteger(input.size) ||
       input.size < 0
     )
-      throw httpError(400, 'Choose a valid file.');
+      throw httpError(400, 'Choose a valid file.', 'invalid_file');
     if (input.size > config.maxFileBytes)
-      throw httpError(413, 'This file exceeds the upload limit.');
+      throw httpError(413, 'This file exceeds the upload limit.', 'file_exceeds_limit');
     const expiration = input.expiration ?? 'month',
       password = input.password ?? '',
       oneTime = input.oneTime ?? false;
@@ -275,12 +281,12 @@ export function registerChunkRoutes(app, store, config) {
       password.length > 256 ||
       typeof oneTime !== 'boolean'
     )
-      throw httpError(400, 'Invalid upload settings.');
+      throw httpError(400, 'Invalid upload settings.', 'invalid_upload_settings');
     if (
       (input.id !== undefined || input.token !== undefined) &&
       (!validToken(input.id) || !validToken(input.token))
     )
-      throw httpError(400, 'Invalid upload credentials.');
+      throw httpError(400, 'Invalid upload credentials.', 'invalid_upload_credentials');
     const id = input.id || token(),
       secret = input.token || token();
     const name =
@@ -290,9 +296,13 @@ export function registerChunkRoutes(app, store, config) {
     const existing = uploadSession(store, id);
     if (existing) {
       if (!equal(existing.token_hash, digest(secret)))
-        throw httpError(409, 'This upload ID is already in use.');
+        throw httpError(409, 'This upload ID is already in use.', 'upload_id_in_use');
       if (existing.updated_at <= Date.now() - SESSION_IDLE_MS || existing.state === 'cancelled')
-        throw httpError(410, 'This upload session has expired.');
+        throw httpError(
+          410,
+          'This upload session has expired. Start again.',
+          'upload_session_expired',
+        );
       if (
         existing.name !== name ||
         existing.size !== input.size ||
@@ -302,23 +312,28 @@ export function registerChunkRoutes(app, store, config) {
           ? !(await verifyPassword(password, existing.password_hash))
           : !!password)
       )
-        throw httpError(409, 'The upload settings have changed. Start a new upload.');
+        throw httpError(
+          409,
+          'The upload settings have changed. Start a new upload.',
+          'upload_settings_changed',
+        );
       return res.json({ ...summary(existing, secret), token: secret });
     }
     if (store.db.prepare('SELECT id FROM files WHERE id = ?').get(id))
-      throw httpError(409, 'This upload ID is already in use.');
+      throw httpError(409, 'This upload ID is already in use.', 'upload_id_in_use');
     if (store.db.prepare('SELECT count(*) AS count FROM upload_sessions').get().count >= 1000)
-      throw httpError(503, 'Too many active uploads. Try again later.');
+      throw httpError(503, 'Too many active uploads. Try again later.', 'too_many_uploads');
     if (config.maxTotalBytes && committedBytes(store) + input.size > config.maxTotalBytes)
       throw storageFull();
     await operation(store, id, async (signal) => {
       const passwordHash = password ? await hashPassword(password) : null;
-      if (req.aborted || res.destroyed || signal.aborted) throw httpError(400, 'Upload cancelled.');
+      if (req.aborted || res.destroyed || signal.aborted)
+        throw httpError(400, 'Upload cancelled.', 'upload_cancelled');
       const handle = await open(join(store.partialDir, id), 'wx', 0o600);
       await handle.close();
       if (req.aborted || res.destroyed || signal.aborted) {
         await rm(join(store.partialDir, id), { force: true });
-        throw httpError(400, 'Upload cancelled.');
+        throw httpError(400, 'Upload cancelled.', 'upload_cancelled');
       }
       // Re-check synchronously before reserving: other sessions may have been
       // created while this one hashed its password.
@@ -355,9 +370,10 @@ export function registerChunkRoutes(app, store, config) {
   app.put('/api/uploads/sessions/:id/chunks', async (req, res) => {
     const session = authorizedSession(req, store);
     if (!/^\d+$/.test(req.headers['x-upload-offset'] || ''))
-      throw httpError(400, 'Provide a valid chunk offset.');
+      throw httpError(400, 'Provide a valid chunk offset.', 'missing_chunk_offset');
     const offset = Number(req.headers['x-upload-offset']);
-    if (!Number.isSafeInteger(offset)) throw httpError(400, 'Invalid chunk offset.');
+    if (!Number.isSafeInteger(offset))
+      throw httpError(400, 'Invalid chunk offset.', 'invalid_chunk_offset');
     await operation(store, session.id, async (signal) => {
       const body = await readChunk(req, signal);
       const updated = await appendChunk(store, session.id, offset, body, signal);
@@ -368,7 +384,8 @@ export function registerChunkRoutes(app, store, config) {
     const session = authorizedSession(req, store),
       secret = req.headers['x-upload-token'];
     if (session.state === 'complete') return res.json(summary(session, secret));
-    if (session.offset !== session.size) throw httpError(409, 'The upload is not complete yet.');
+    if (session.offset !== session.size)
+      throw httpError(409, 'The upload is not complete yet.', 'upload_incomplete');
     if (!store.uploadOperations.has(session.id))
       operation(store, session.id, (signal) => finalize(store, session.id, secret, signal)).catch(
         (err) => console.error('Upload operation failed:', err.message),

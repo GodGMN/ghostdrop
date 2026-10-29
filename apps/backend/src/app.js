@@ -47,7 +47,7 @@ export function createApp(config) {
         (req.headers.origin && req.headers.origin !== config.origin) ||
         req.headers['sec-fetch-site'] === 'cross-site'
       )
-        return next(httpError(403, 'Cross-site requests are not allowed.'));
+        return next(httpError(403, 'Cross-site requests are not allowed.', 'cross_site'));
     }
     next();
   });
@@ -79,14 +79,20 @@ export function createApp(config) {
     });
   ready.catch((err) => console.error('Startup cleanup failed:', err.message));
   registerAdminRoutes(app, store, requireAdmin, runCleanup);
-  app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found.' }));
+  app.use('/api', (req, res) =>
+    res.status(404).json({ error: 'API route not found.', code: 'route_not_found' }),
+  );
   app.use((err, req, res, next) => {
     req.resume();
     if (res.destroyed) return;
     if (res.headersSent) return next(err);
     res
       .status(err.status || 500)
-      .json({ error: err.status ? err.message : 'Something went wrong. Please try again.' });
+      .json(
+        err.status
+          ? { error: err.message, code: err.code || 'request_failed' }
+          : { error: 'Something went wrong. Please try again.', code: 'internal_error' },
+      );
   });
   let closed = false;
   return {

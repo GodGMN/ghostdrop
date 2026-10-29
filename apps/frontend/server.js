@@ -38,7 +38,11 @@ export function createFrontend(backendUrl) {
     );
     upstream.on('error', () => {
       if (res.headersSent) res.destroy();
-      else res.status(502).json({ error: 'Backend is unavailable. Please try again.' });
+      else
+        res.status(502).json({
+          error: 'Backend is unavailable. Please try again.',
+          code: 'backend_unavailable',
+        });
     });
     req.on('aborted', () => upstream.destroy());
     res.on('close', () => upstream.destroy());

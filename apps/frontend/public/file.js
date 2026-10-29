@@ -1,5 +1,6 @@
-import { main, escapeHtml, bytes, date, status, api } from './app.js';
+import { main, escapeHtml, bytes, date, status, api, setView } from './app.js';
 import { fileIcon } from './file-visual.js';
+import { errorText, t } from './i18n.js';
 
 export async function initFile() {
   const id = location.pathname.split('/')[2];
@@ -7,32 +8,34 @@ export async function initFile() {
   const direct = location.pathname.endsWith('/direct');
   const base = `/api/files/${encodeURIComponent(id)}`;
   const deletionToken = location.hash.slice(1);
-  main.innerHTML = '<p class="status">Finding your file…</p>';
-  try {
-    const file = await api(
-      deleting ? `${base}/delete-info` : base,
-      deleting
-        ? {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: deletionToken }),
-          }
-        : {},
-    );
-    render(file);
-  } catch (err) {
-    unavailable(err.message);
+  let state = { kind: 'loading' };
+  let previewText;
+  let downloadStarted = false;
+
+  // Every view is re-renderable so a language change can repaint it in place.
+  function paint() {
+    setView(paint);
+    if (state.kind === 'loading') {
+      main.innerHTML = `<p class="status">${t('file.finding')}</p>`;
+      return;
+    }
+    if (state.kind === 'unavailable') {
+      main.innerHTML = `<section class="card"><p class="eyebrow">${t('file.goneEyebrow')}</p><h1>${t('file.unavailableTitle')}</h1><p class="muted">${escapeHtml(state.message)}</p><a class="button full" href="/">${t('file.shareNew')}</a></section>`;
+      return;
+    }
+    renderFile(state.file);
   }
 
   function unavailable(message) {
-    main.innerHTML = `<section class="card"><p class="eyebrow">Gone for good</p><h1>File unavailable.</h1><p class="muted">${escapeHtml(message)}</p><a class="button full" href="/">Share a new file</a></section>`;
+    state = { kind: 'unavailable', message };
+    paint();
   }
-  function render(file) {
-    main.innerHTML = `<section class="card share-card"><p class="eyebrow">${deleting ? 'Private deletion link' : 'Shared file'}</p><div id="file-preview"></div><div class="shared-file"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><h1>${escapeHtml(file.name)}</h1></div><p class="file-size">${bytes(file.size)} · Expires ${date(file.expiresAt)}</p>${file.oneTime ? '<p class="small-note">One-time file. Starting the download deletes the stored file, even if the transfer is interrupted.</p>' : ''}<div id="file-action"></div></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
+
+  function renderFile(file) {
+    main.innerHTML = `<section class="card share-card"><p class="eyebrow">${deleting ? t('file.privateEyebrow') : t('file.sharedEyebrow')}</p><div id="file-preview"></div><div class="shared-file"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><h1>${escapeHtml(file.name)}</h1></div><p class="file-size">${t('file.sizeExpires', { size: bytes(file.size), date: date(file.expiresAt) })}</p>${file.oneTime ? `<p class="small-note">${t('file.oneTimeNote')}</p>` : ''}<div id="file-action"></div></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
     const action = document.querySelector('#file-action');
     if (deleting) {
-      action.innerHTML =
-        '<p>This permanently deletes the file and its sharing links.</p><button class="button danger full" id="delete">Delete this file</button>';
+      action.innerHTML = `<p>${t('file.deleteWarning')}</p><button class="button danger full" id="delete">${t('file.deleteButton')}</button>`;
       document.querySelector('#delete').onclick = async (event) => {
         event.currentTarget.disabled = true;
         try {
@@ -41,15 +44,14 @@ export async function initFile() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: deletionToken }),
           });
-          unavailable('The file has been deleted.');
+          unavailable(t('file.deleted'));
         } catch (err) {
           status(err.message, true);
           document.querySelector('#delete').disabled = false;
         }
       };
     } else if (file.locked) {
-      action.innerHTML =
-        '<form id="unlock" class="form-grid"><label class="field">File password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">Unlock file</button></form>';
+      action.innerHTML = `<form id="unlock" class="form-grid"><label class="field">${t('file.passwordLabel')}<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">${t('file.unlock')}</button></form>`;
       document.querySelector('#unlock').onsubmit = async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
@@ -61,52 +63,80 @@ export async function initFile() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: form.elements.password.value }),
           });
-          render(unlocked);
+          state = { kind: 'file', file: unlocked };
+          paint();
         } catch (err) {
           status(err.message, true);
           button.disabled = false;
         }
       };
     } else {
-      action.innerHTML = `<div class="actions"><a class="button" id="download" href="${base}/download">Download file ↓</a></div>`;
+      action.innerHTML = `<div class="actions"><a class="button" id="download" href="${base}/download">${t('file.download')} ↓</a></div>`;
       document.querySelector('#download').onclick = () => {
-        if (file.oneTime)
-          setTimeout(
-            () => unavailable('The one-time download has started. This link has been consumed.'),
-            1000,
-          );
+        if (file.oneTime) setTimeout(() => unavailable(t('file.oneTimeStarted')), 1000);
       };
       if (!direct && file.previewAvailable) showPreview(file);
-      else if (file.passwordProtected) status('Preview is disabled for password-protected files.');
-      if (direct) document.querySelector('#download').click();
+      else if (file.passwordProtected) status(t('file.previewDisabled'));
+      if (direct && !downloadStarted) {
+        downloadStarted = true;
+        document.querySelector('#download').click();
+      }
     }
   }
+
+  function appendPreviewText() {
+    const text = document.createElement('pre');
+    text.className = 'preview-text';
+    text.textContent = previewText;
+    document.querySelector('#file-preview').append(text);
+  }
+
   async function showPreview(file) {
     if (file.mime.startsWith('image/')) {
       const image = document.createElement('img');
       image.alt = file.name;
       image.className = 'preview-image';
-      image.onerror = () =>
-        status('The image preview could not be loaded. You can still download the file.', true);
+      image.onerror = () => status(t('file.previewFailed'), true);
       image.src = `${base}/preview`;
       document.querySelector('#file-preview').append(image);
       document.querySelector('.shared-file .file-icon').hidden = true;
+      return;
+    }
+    if (previewText !== undefined) {
+      appendPreviewText();
       return;
     }
     try {
       const response = await fetch(`${base}/preview`);
       if (!response.ok) {
         const body = await response.json();
-        throw new Error(body.error);
+        throw new Error(errorText(body.code, body.error));
       }
-      {
-        const text = document.createElement('pre');
-        text.className = 'preview-text';
-        text.textContent = await response.text();
-        document.querySelector('#file-preview').append(text);
-      }
+      previewText = await response.text();
+      appendPreviewText();
     } catch (err) {
       status(err.message, true);
     }
+  }
+
+  paint();
+  try {
+    state = {
+      kind: 'file',
+      file: await api(
+        deleting ? `${base}/delete-info` : base,
+        deleting
+          ? {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: deletionToken }),
+            }
+          : {},
+      ),
+    };
+    paint();
+  } catch (err) {
+    // Older backends send no code; api() already localized the message.
+    unavailable(err.message);
   }
 }

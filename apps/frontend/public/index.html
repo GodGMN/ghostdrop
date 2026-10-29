@@ -4,8 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#151816" />
-    <meta name="description" content="Drop a file. Share a link. Let it disappear." />
-    <title>Ghostdrop · temporary file sharing</title>
+    <meta
+      name="description"
+      content="Drop a file. Share a link. Let it disappear."
+      data-i18n-content="meta.description"
+    />
+    <title data-i18n="meta.title">Ghostdrop · temporary file sharing</title>
     <link rel="icon" href="/ghost.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/style.css" />
     <script type="module" src="/app.js"></script>
@@ -13,15 +17,20 @@
   <body>
     <div class="shell">
       <header>
-        <a class="brand" href="/" aria-label="Ghostdrop home"
+        <a class="brand" href="/" data-i18n-label="brand.home"
           ><img src="/ghost.svg" width="44" height="48" alt="" /><span
             >ghostdrop<span class="brand-dot">.</span></span
           ></a
         >
       </header>
       <main id="main">
-        <section class="drop-zone" id="drop-zone" aria-label="Select a file">
-          <input id="file-picker" type="file" class="visually-hidden" aria-label="Choose a file" />
+        <section class="drop-zone" id="drop-zone" data-i18n-label="landing.selectFile">
+          <input
+            id="file-picker"
+            type="file"
+            class="visually-hidden"
+            data-i18n-label="landing.chooseFile"
+          />
           <label class="drop-target" for="file-picker" tabindex="0" role="button">
             <span class="drop-icon" aria-hidden="true"
               ><svg viewBox="0 0 48 58" fill="none">
@@ -43,16 +52,32 @@
                   stroke-linejoin="round"
                 /></svg
             ></span>
-            <span class="drop-title">Drop a file.</span>
-            <span class="muted">Or <span class="text-link">choose a file</span> to share.</span>
+            <span class="drop-title" data-i18n="landing.dropTitle">Drop a file.</span>
+            <span class="muted" data-i18n-html="landing.chooseHtml"
+              >Or <span class="text-link">choose a file</span> to share.</span
+            >
           </label>
         </section>
-        <p class="drop-note" aria-live="polite">Checking upload limit…</p>
+        <p class="drop-note" aria-live="polite" data-i18n="landing.checkingLimit">
+          Checking upload limit…
+        </p>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </main>
       <footer>
-        Drop a file. Share a link. Let it disappear. ·
-        <a href="https://github.com/GodGMN/ghostdrop">Source</a>
+        <p class="footer-line">
+          <span data-i18n="footer.tagline">Drop a file. Share a link. Let it disappear.</span> ·
+          <a href="https://github.com/GodGMN/ghostdrop" data-i18n="footer.source">Source</a>
+        </p>
+        <label class="language-picker">
+          <span class="visually-hidden" data-i18n="language.label">Language</span>
+          <svg class="language-icon" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25" />
+            <path
+              d="M1.75 8h12.5M8 1.75c1.7 1.75 2.6 3.8 2.6 6.25S9.7 12.5 8 14.25 5.4 10.5 5.4 8 6.3 3.5 8 1.75Z"
+            />
+          </svg>
+          <select id="language" hidden></select>
+        </label>
       </footer>
     </div>
   </body>

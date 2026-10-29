@@ -18,6 +18,7 @@ Simple, temporary, self-hosted file sharing. Drop a file, share a link, and it d
 - **Safe previews** for images and plain text; everything else, including HTML and SVG, is only ever downloaded.
 - **Optional upload restrictions**: an upload password, an IP allowlist, or both. Downloads stay public.
 - **Admin panel** with search by name, hash or link, storage totals, deletion and cleanup.
+- **English and Castilian Spanish**: the UI follows the browser language, with a discreet footer selector and a `?lang=` override. API errors carry stable codes, so they are localized too.
 - **Local disk or S3-compatible storage** (AWS, MinIO), a global storage cap, and no database server: metadata lives in SQLite.
 
 ## Quick start
@@ -311,6 +312,8 @@ npm run check
 
 `npm run format` formats the source. Node 24 currently prints an experimental warning for its built-in SQLite module.
 
+UI copy lives in `apps/frontend/public/i18n.js`. Add a key to every catalog there; `npm test` fails if a catalog is missing a key, if placeholders differ, or if a backend error code has no message.
+
 ## Manual verification
 
 1. Select or drop a file and change settings. Confirm the browser Network panel has no upload request until **Upload file** is clicked.
@@ -323,6 +326,7 @@ npm run check
 8. Enable admin, log in, search by filename/hash/link, and verify storage totals. Delete a file with confirmation, run cleanup, and sign out. Unauthorized requests and mutations without CSRF tokens must fail.
 9. Check the landing, settings, receipt, download, and admin pages on desktop and a narrow mobile viewport. Use keyboard navigation for file selection and controls.
 10. Upload a file larger than 1 MiB through a proxy with a 1 MiB request-body cap. Confirm file requests never exceed 512 KiB and downloaded bytes match. Interrupt a chunk or lose an acknowledgement, then retry; confirm previously accepted bytes are not duplicated. Restart the backend mid-upload and resume from the stored offset.
+11. Open the site with a Spanish browser locale, then with an English one, and with `?lang=es`. Confirm the footer selector, every page, dates, file sizes and API error messages (wrong password, unknown file) switch language, that the choice survives a reload, and that changing language mid-form keeps the selected file and settings.
 
 The automated suite exercises storage persistence, upload validation/cleanup, password enforcement, one-time concurrency, physical deletion, expiry, safe previews, admin authorization/search/cleanup, idempotent chunking, cancellation, and restart recovery using temporary data directories. A proxy fixture enforces a 1 MiB body limit and accepts an 8 MiB file via 17 bounded chunks with identical stored bytes. Its timing diagnostic is a local correctness sanity check, not a production throughput benchmark.
 

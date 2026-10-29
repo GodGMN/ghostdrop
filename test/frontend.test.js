@@ -23,6 +23,7 @@ test('frontend serves static assets and sharing routes while backend is API-only
     assert.match(response.headers.get('content-security-policy'), /connect-src 'self'/);
   }
   assert.equal((await fetch(`${base}/app.js`)).status, 200);
+  assert.equal((await fetch(`${base}/i18n.js`)).status, 200);
   assert.equal((await fetch(`${base}/api/config`)).status, 200);
   assert.equal((await fetch(`${backend.base}/`)).status, 404);
   const missing = await fetch(`${base}/api/missing`);

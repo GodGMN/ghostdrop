@@ -13,10 +13,10 @@ export async function deleteFile(store, id) {
 export async function availableFile(store, id) {
   const record = store.db.prepare('SELECT * FROM files WHERE id = ?').get(id);
   if (!record || record.state !== 'available')
-    throw httpError(404, 'This file is no longer available.');
+    throw httpError(404, 'This file is no longer available.', 'file_unavailable');
   if (record.expires_at <= Date.now()) {
     await deleteFile(store, id);
-    throw httpError(410, 'This file has expired and has been deleted.');
+    throw httpError(410, 'This file has expired and has been deleted.', 'file_expired');
   }
   return record;
 }

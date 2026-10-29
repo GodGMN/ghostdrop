@@ -37,11 +37,12 @@ export function registerFileRoutes(app, store, config) {
     return grant?.id === record.id && grant.expires > Date.now();
   }
   function authorize(req, record) {
-    if (!authorized(req, record)) throw httpError(401, 'Enter the file password to continue.');
+    if (!authorized(req, record))
+      throw httpError(401, 'Enter the file password to continue.', 'file_password_required');
   }
   function deletionCapability(req, record) {
     if (typeof req.body?.token !== 'string' || !equal(digest(req.body.token), record.delete_hash))
-      throw httpError(403, 'This deletion link is invalid.');
+      throw httpError(403, 'This deletion link is invalid.', 'invalid_deletion_link');
   }
   app.get('/api/files/:id', async (req, res) => {
     const file = await availableFile(store, req.params.id);
@@ -56,9 +57,9 @@ export function registerFileRoutes(app, store, config) {
         req.body.password.length > 256 ||
         !(await verifyPassword(req.body.password, file.password_hash)))
     )
-      throw httpError(401, 'That password is incorrect.');
+      throw httpError(401, 'That password is incorrect.', 'incorrect_password');
     for (const [key, grant] of grants) if (grant.expires <= Date.now()) grants.delete(key);
-    if (grants.size >= 5000) throw httpError(503, 'Please try again later.');
+    if (grants.size >= 5000) throw httpError(503, 'Please try again later.', 'try_again_later');
     const value = token();
     grants.set(value, { id: file.id, expires: Date.now() + 30 * 60_000 });
     res.cookie(`gd_access_${file.id}`, value, {
@@ -91,10 +92,16 @@ export function registerFileRoutes(app, store, config) {
 }
 
 export async function serveFile(req, res, file, store, type = 'download') {
-  if (req.method !== 'GET') throw httpError(405, 'Use the download page to start a download.');
-  if (req.headers.range) throw httpError(416, 'Partial downloads are not supported.');
+  if (req.method !== 'GET')
+    throw httpError(
+      405,
+      'Use the download page to start a download.',
+      'download_method_not_allowed',
+    );
+  if (req.headers.range)
+    throw httpError(416, 'Partial downloads are not supported.', 'range_not_supported');
   if (type === 'preview' && !canPreview(file))
-    throw httpError(400, 'Preview is not available for this file.');
+    throw httpError(400, 'Preview is not available for this file.', 'preview_unavailable');
   const controller = new AbortController();
   const abort = () => controller.abort();
   res.once('close', abort);
@@ -108,7 +115,8 @@ export async function serveFile(req, res, file, store, type = 'download') {
         "UPDATE files SET state = CASE WHEN one_time = 1 THEN 'deleting' ELSE state END WHERE id = ? AND state = 'available' AND expires_at > ?",
       )
       .run(file.id, Date.now());
-    if (!claimed.changes) throw httpError(404, 'This file is no longer available.');
+    if (!claimed.changes)
+      throw httpError(404, 'This file is no longer available.', 'file_unavailable');
     // The open descriptor remains readable after unlink. Future requests cannot access it.
     if (file.one_time) await deleteFile(store, file.id);
     const ascii = file.name.replace(/[^\x20-\x7e]|["\\]/g, '_');

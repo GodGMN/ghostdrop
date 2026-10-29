@@ -199,9 +199,13 @@ export function createStorage(store, config) {
         }
       } catch (error) {
         if (error.code === 'ENOENT' || missing(error))
-          throw httpError(404, 'This file is no longer available.');
+          throw httpError(404, 'This file is no longer available.', 'file_unavailable');
         if (signal?.aborted) throw error;
-        throw httpError(503, 'File storage is unavailable. Please try again.');
+        throw httpError(
+          503,
+          'File storage is unavailable. Please try again.',
+          'storage_unavailable',
+        );
       }
     },
     remove,

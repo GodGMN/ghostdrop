@@ -19,8 +19,10 @@ export async function verifyPassword(password, stored) {
   if (!salt || !hash || !/^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/.test(stored)) return false;
   return equal((await scrypt(password, salt, 64)).toString('hex'), hash);
 }
-export function httpError(status, message) {
-  return Object.assign(new Error(message), { status });
+// `code` is a stable machine-readable identifier so clients can localize errors
+// without depending on the English message. See apps/frontend/public/i18n.js.
+export function httpError(status, message, code) {
+  return Object.assign(new Error(message), { status, code });
 }
 
 export function rateLimiter(limit = 8, windowMs = 15 * 60_000) {
@@ -30,12 +32,17 @@ export function rateLimiter(limit = 8, windowMs = 15 * 60_000) {
     for (const [key, bucket] of buckets) if (bucket.until <= now) buckets.delete(key);
     let bucket = buckets.get(key);
     if (!bucket) {
-      if (buckets.size >= 5000) throw httpError(429, 'Too many requests. Please try again later.');
+      if (buckets.size >= 5000)
+        throw httpError(429, 'Too many requests. Please try again later.', 'rate_limited');
       bucket = { count: 0, until: now + windowMs };
       buckets.set(key, bucket);
     }
     if (++bucket.count > limit)
-      throw httpError(429, 'Too many attempts. Please try again in 15 minutes.');
+      throw httpError(
+        429,
+        'Too many attempts. Please try again in 15 minutes.',
+        'too_many_attempts',
+      );
   };
 }
 export function cookies(req) {

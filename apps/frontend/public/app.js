@@ -1,4 +1,12 @@
 import { fileIcon, localThumbnail } from './file-visual.js';
+import {
+  applyTranslations,
+  errorText,
+  initLanguage,
+  languageTag,
+  onLanguageChange,
+  t,
+} from './i18n.js';
 
 export const main = document.querySelector('#main');
 export const escapeHtml = (value) =>
@@ -6,12 +14,18 @@ export const escapeHtml = (value) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
-export const bytes = (value) =>
-  value < 1024
-    ? `${value} B`
-    : `${(value / 1024 ** Math.min(3, Math.floor(Math.log(value) / Math.log(1024)))).toFixed(1)} ${['B', 'KiB', 'MiB', 'GiB'][Math.min(3, Math.floor(Math.log(value) / Math.log(1024)))]}`;
+const units = ['B', 'KiB', 'MiB', 'GiB'];
+export function bytes(value, { trim = false } = {}) {
+  const exponent = value < 1024 ? 0 : Math.min(3, Math.floor(Math.log(value) / Math.log(1024)));
+  const digits = exponent === 0 ? 0 : 1;
+  const format = new Intl.NumberFormat(languageTag(), {
+    minimumFractionDigits: trim ? 0 : digits,
+    maximumFractionDigits: digits,
+  });
+  return `${format.format(value / 1024 ** exponent)} ${units[exponent]}`;
+}
 export const date = (value) =>
-  new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  new Date(value).toLocaleString(languageTag(), { dateStyle: 'medium', timeStyle: 'short' });
 export function status(message, error = false) {
   const el = document.querySelector('#status');
   if (el) {
@@ -21,63 +35,64 @@ export function status(message, error = false) {
 }
 export async function api(path, options = {}) {
   const response = await fetch(path, options);
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = new Error(data.error || 'Request failed.');
+    const err = new Error(errorText(data.code, data.error || t('error.request_failed')));
     err.status = response.status;
+    err.code = data.code;
     throw err;
   }
   return data;
 }
 
-const landing = main.innerHTML;
+const landingMarkup = main.innerHTML;
+let renderView;
 let selected;
 let uploadLimits;
+let limit;
 let disposeThumbnail = () => {};
-function reset() {
-  disposeThumbnail();
+
+// Views register themselves so a language change can re-render the current one.
+export function setView(render) {
+  renderView = render;
+}
+
+function renderLanding() {
   selected = undefined;
-  main.innerHTML = landing;
+  disposeThumbnail();
+  disposeThumbnail = () => {};
+  main.innerHTML = landingMarkup;
+  applyTranslations(main);
   wirePicker();
 }
-function choose(file) {
-  if (!file) return;
-  disposeThumbnail();
-  selected = file;
-  main.innerHTML = `<form id="upload-form" class="card">
-    <p class="eyebrow" id="upload-eyebrow">Ready when you are</p>
-    <div class="file-row"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><div class="file-info"><p class="file-name">${escapeHtml(file.name)}</p><span class="file-size" id="upload-state">${bytes(file.size)} · ready to upload</span><button class="change-file" type="button" id="replace">Choose another file</button><input id="replace-picker" type="file" class="visually-hidden" aria-label="Replace selected file"></div><button class="icon-button" type="button" id="remove" aria-label="Remove selected file">×</button></div>
-    <div class="form-grid upload-settings">
-      <label class="field">Keep it for<select name="expiration"><option value="hour">One hour</option><option value="day">One day</option><option value="week">One week</option><option value="month" selected>One month</option></select></label>
-      <label class="field">Password<input name="password" type="password" autocomplete="new-password" maxlength="256" placeholder="Optional"><small>Access protection, without encryption.</small></label>
-      <label class="toggle-row"><input name="oneTime" type="checkbox"><span>One-time download<small>Deleted after the first download starts, even if interrupted.</small></span></label>
-    </div><div class="upload-submit"><span class="muted" id="upload-note">Not uploaded yet</span><button class="button" type="submit">Upload file <span aria-hidden="true">↑</span></button></div>
-    <div id="upload-progress"></div>
-  </form><p id="status" class="status" role="status" aria-live="polite"></p>`;
-  disposeThumbnail = localThumbnail(document.querySelector('.file-icon'), file);
-  document.querySelector('#remove').onclick = reset;
-  document.querySelector('#replace').onclick = () =>
-    document.querySelector('#replace-picker').click();
-  document.querySelector('#replace-picker').onchange = (event) => choose(event.target.files[0]);
-  document.querySelector('#upload-form').onsubmit = async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const { upload } = await import('./upload.js');
-    upload(selected, form, disposeThumbnail);
-  };
-  document.querySelector('#remove').focus();
+
+function showLimitNote() {
+  const note = document.querySelector('.drop-note');
+  if (!note) return;
+  note.textContent = !limit
+    ? t('landing.checkingLimit')
+    : limit.failed
+      ? t('landing.limitUnavailable')
+      : t('landing.limit', { size: bytes(limit.maxFileBytes, { trim: true }) });
 }
-window.addEventListener('pagehide', () => disposeThumbnail());
-function wirePicker() {
-  const limitNote = document.querySelector('.drop-note');
-  (uploadLimits ||= api('/api/config'))
-    .then(({ maxFileBytes }) => {
-      limitNote.textContent = `Up to ${bytes(maxFileBytes).replace('.0 ', ' ')} per file.`;
-    })
-    .catch(() => {
+
+function loadLimits() {
+  (uploadLimits ||= api('/api/config')).then(
+    ({ maxFileBytes }) => {
+      limit = { maxFileBytes };
+      showLimitNote();
+    },
+    () => {
       uploadLimits = undefined;
-      limitNote.textContent = 'Upload limit unavailable. Please refresh.';
-    });
+      limit = { failed: true };
+      showLimitNote();
+    },
+  );
+}
+
+function wirePicker() {
+  showLimitNote();
+  loadLimits();
   const picker = document.querySelector('#file-picker');
   picker.onchange = () => choose(picker.files[0]);
   document.querySelector('.drop-target').onkeydown = (event) => {
@@ -95,15 +110,58 @@ function wirePicker() {
   zone.ondrop = (event) => {
     event.preventDefault();
     zone.classList.remove('dragging');
-    if (event.dataTransfer.files.length > 1) status('Choose one file at a time.', true);
+    if (event.dataTransfer.files.length > 1) status(t('upload.oneFileAtATime'), true);
     else choose(event.dataTransfer.files[0]);
   };
 }
-function restricted() {
-  main.innerHTML = `<section class="card login-card"><p class="eyebrow">Uploads restricted</p><h1>Uploads are private here.</h1><p class="muted">This Ghostdrop server only accepts uploads from approved networks. Shared links still work.</p></section>`;
+
+function renderChoose() {
+  const file = selected;
+  if (!file) return renderLanding();
+  disposeThumbnail();
+  main.innerHTML = `<form id="upload-form" class="card">
+    <p class="eyebrow" id="upload-eyebrow">${t('upload.ready')}</p>
+    <div class="file-row"><span class="file-icon" aria-hidden="true">${fileIcon(file.name)}</span><div class="file-info"><p class="file-name">${escapeHtml(file.name)}</p><span class="file-size" id="upload-state">${t('upload.stateReady', { size: bytes(file.size) })}</span><button class="change-file" type="button" id="replace">${t('upload.changeFile')}</button><input id="replace-picker" type="file" class="visually-hidden" aria-label="${t('upload.replaceFile')}"></div><button class="icon-button" type="button" id="remove" aria-label="${t('upload.removeFile')}">×</button></div>
+    <div class="form-grid upload-settings">
+      <label class="field">${t('upload.keepFor')}<select name="expiration"><option value="hour">${t('upload.oneHour')}</option><option value="day">${t('upload.oneDay')}</option><option value="week">${t('upload.oneWeek')}</option><option value="month" selected>${t('upload.oneMonth')}</option></select></label>
+      <label class="field">${t('upload.password')}<input name="password" type="password" autocomplete="new-password" maxlength="256" placeholder="${t('upload.optional')}"><small>${t('upload.passwordNote')}</small></label>
+      <label class="toggle-row"><input name="oneTime" type="checkbox"><span>${t('upload.oneTime')}<small>${t('upload.oneTimeNote')}</small></span></label>
+    </div><div class="upload-submit"><span class="muted" id="upload-note">${t('upload.notUploaded')}</span><button class="button" type="submit">${t('upload.submit')} <span aria-hidden="true">↑</span></button></div>
+    <div id="upload-progress"></div>
+  </form><p id="status" class="status" role="status" aria-live="polite"></p>`;
+  disposeThumbnail = localThumbnail(document.querySelector('.file-icon'), file);
+  document.querySelector('#remove').onclick = reset;
+  document.querySelector('#replace').onclick = () =>
+    document.querySelector('#replace-picker').click();
+  document.querySelector('#replace-picker').onchange = (event) => choose(event.target.files[0]);
+  document.querySelector('#upload-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const { upload } = await import('./upload.js');
+    upload(selected, form, disposeThumbnail);
+  };
+  document.querySelector('#remove').focus();
 }
-function unlockUploads() {
-  main.innerHTML = `<section class="card login-card"><p class="eyebrow">Private uploads</p><h1>Enter the upload password.</h1><form id="upload-unlock" class="form-grid"><label class="field">Upload password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">Unlock uploads</button></form></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
+
+function choose(file) {
+  if (!file) return;
+  selected = file;
+  setView(renderChoose);
+  renderChoose();
+}
+
+function reset() {
+  selected = undefined;
+  setView(renderLanding);
+  renderLanding();
+}
+
+function renderRestricted() {
+  main.innerHTML = `<section class="card login-card"><p class="eyebrow">${t('restricted.eyebrow')}</p><h1>${t('restricted.title')}</h1><p class="muted">${t('restricted.body')}</p></section>`;
+}
+
+function renderUnlock() {
+  main.innerHTML = `<section class="card login-card"><p class="eyebrow">${t('unlock.eyebrow')}</p><h1>${t('unlock.title')}</h1><form id="upload-unlock" class="form-grid"><label class="field">${t('unlock.password')}<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><button class="button" type="submit">${t('unlock.submit')}</button></form></section><p id="status" class="status" role="status" aria-live="polite"></p>`;
   document.querySelector('#upload-unlock').onsubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget,
@@ -115,7 +173,8 @@ function unlockUploads() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: form.elements.password.value }),
       });
-      reset();
+      setView(renderLanding);
+      renderLanding();
     } catch (err) {
       status(err.message, true);
       button.disabled = false;
@@ -123,13 +182,43 @@ function unlockUploads() {
   };
   document.querySelector('#upload-unlock input').focus();
 }
+
 async function start() {
   // Older backends have no access endpoint; uploads then report their own errors.
   const access = await api('/api/uploads/access').catch(() => ({ allowed: true, unlocked: true }));
-  if (!access.allowed) restricted();
-  else if (!access.unlocked) unlockUploads();
-  else wirePicker();
+  if (!access.allowed) {
+    setView(renderRestricted);
+    renderRestricted();
+  } else if (!access.unlocked) {
+    setView(renderUnlock);
+    renderUnlock();
+  } else {
+    setView(renderLanding);
+    renderLanding();
+  }
 }
+
+onLanguageChange(() => {
+  // An upload in flight owns its form and progress elements; leave it alone and
+  // let upload.js retranslate its live labels instead.
+  const form = document.querySelector('#upload-form');
+  if (form?.dataset.uploading) return;
+  const values = form && {
+    password: form.elements.password.value,
+    expiration: form.elements.expiration.value,
+    oneTime: form.elements.oneTime.checked,
+  };
+  renderView?.();
+  if (!values) return;
+  const next = document.querySelector('#upload-form');
+  if (!next) return;
+  next.elements.password.value = values.password;
+  next.elements.expiration.value = values.expiration;
+  next.elements.oneTime.checked = values.oneTime;
+});
+
+initLanguage();
+
 if (location.pathname === '/') start();
 else if (location.pathname.startsWith('/admin')) import('./admin.js').then((m) => m.initAdmin());
 else import('./file.js').then((m) => m.initFile());

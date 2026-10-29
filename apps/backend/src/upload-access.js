@@ -40,14 +40,19 @@ export function createUploadAccess(config) {
   });
   function guard(req, res, next) {
     if (req.path === '/access') return next();
-    if (!ipAllowed(req)) return next(httpError(403, 'Uploads are restricted on this server.'));
-    if (!unlocked(req)) return next(httpError(401, 'Enter the upload password to continue.'));
+    if (!ipAllowed(req))
+      return next(httpError(403, 'Uploads are restricted on this server.', 'uploads_restricted'));
+    if (!unlocked(req))
+      return next(
+        httpError(401, 'Enter the upload password to continue.', 'upload_password_required'),
+      );
     next();
   }
   function register(app) {
     app.get('/api/uploads/access', (req, res) => res.json(state(req)));
     app.post('/api/uploads/access', async (req, res) => {
-      if (!ipAllowed(req)) throw httpError(403, 'Uploads are restricted on this server.');
+      if (!ipAllowed(req))
+        throw httpError(403, 'Uploads are restricted on this server.', 'uploads_restricted');
       if (!config.uploadPasswordHash) return res.json(state(req));
       limit(req.ip);
       if (
@@ -55,9 +60,9 @@ export function createUploadAccess(config) {
         req.body.password.length > 256 ||
         !(await verifyPassword(req.body.password, config.uploadPasswordHash))
       )
-        throw httpError(401, 'That password is incorrect.');
+        throw httpError(401, 'That password is incorrect.', 'incorrect_password');
       for (const [key, expires] of sessions) if (expires <= Date.now()) sessions.delete(key);
-      if (sessions.size >= 5000) throw httpError(503, 'Please try again later.');
+      if (sessions.size >= 5000) throw httpError(503, 'Please try again later.', 'try_again_later');
       const value = token();
       sessions.set(value, Date.now() + SESSION_MS);
       res.cookie('gd_upload', value, { ...cookieOptions(config), maxAge: SESSION_MS });
