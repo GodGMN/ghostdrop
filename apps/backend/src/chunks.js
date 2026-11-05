@@ -1,3 +1,4 @@
+import { recordUsage } from './metrics.js';
 import { open, rm } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -231,6 +232,7 @@ async function finalize(store, id, secret, signal) {
           "UPDATE upload_sessions SET state = 'complete', receipt_json = ?, updated_at = ? WHERE id = ?",
         )
         .run(JSON.stringify(file), now, id);
+      recordUsage(store, 'upload', file.size, now);
       store.db.exec('COMMIT');
     } catch (err) {
       store.db.exec('ROLLBACK');

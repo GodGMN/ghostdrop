@@ -1,3 +1,4 @@
+import { registerMetricsRoutes } from './metrics.js';
 import express from 'express';
 import { openStore } from './store.js';
 import { httpError } from './security.js';
@@ -56,6 +57,7 @@ export function createApp(config) {
   uploadAccess.register(app);
   registerChunkRoutes(app, store, config);
   registerFileRoutes(app, store, config);
+  registerMetricsRoutes(app, store, config);
   const requireAdmin = registerAdminAuth(app, config);
   let cleaning;
   let storageReady = false;

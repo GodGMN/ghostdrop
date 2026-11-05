@@ -1,3 +1,4 @@
+import { recordUsage } from './metrics.js';
 import { pipeline } from 'node:stream/promises';
 import { availableFile, deleteFile } from './lifecycle.js';
 import {
@@ -75,7 +76,7 @@ export function registerFileRoutes(app, store, config) {
     app.all(`/api/files/:id/${type}`, async (req, res) => {
       const file = await availableFile(store, req.params.id);
       authorize(req, file);
-      await serveFile(req, res, file, store, type);
+      await serveFile(req, res, file, store, type, true);
     });
   }
   app.post('/api/files/:id/delete-info', async (req, res) => {
@@ -91,7 +92,7 @@ export function registerFileRoutes(app, store, config) {
   });
 }
 
-export async function serveFile(req, res, file, store, type = 'download') {
+export async function serveFile(req, res, file, store, type = 'download', trackUsage = false) {
   if (req.method !== 'GET')
     throw httpError(
       405,
@@ -128,6 +129,14 @@ export async function serveFile(req, res, file, store, type = 'download') {
       'Content-Security-Policy': "default-src 'none'; sandbox",
       'Accept-Ranges': 'none',
     });
+    if (trackUsage && type === 'download')
+      res.once('finish', () => {
+        try {
+          recordUsage(store, 'download', file.size);
+        } catch (err) {
+          console.error('Download metrics failed:', err.message);
+        }
+      });
     try {
       await pipeline(handle.stream, res, { signal: controller.signal });
     } catch (err) {

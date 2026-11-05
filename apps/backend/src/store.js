@@ -17,6 +17,19 @@ export function openStore(dataDir) {
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
+    CREATE TABLE IF NOT EXISTS usage_tracking (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      started_at INTEGER NOT NULL
+    ) STRICT;
+    INSERT OR IGNORE INTO usage_tracking VALUES (1, unixepoch('subsec') * 1000);
+    CREATE TABLE IF NOT EXISTS usage_daily (
+      day TEXT PRIMARY KEY,
+      uploads INTEGER NOT NULL,
+      uploadedBytes INTEGER NOT NULL,
+      downloads INTEGER NOT NULL,
+      downloadedBytes INTEGER NOT NULL,
+      lastActivityAt INTEGER NOT NULL
+    ) STRICT;
     CREATE TABLE IF NOT EXISTS files (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

@@ -149,6 +149,7 @@ test('cancellation removes an active session and completed bytes', async (t) => 
   const second = await init(base);
   await chunk(base, second, 0, Buffer.alloc(16));
   const file = await complete(base, second);
+  await until(() => !store.uploadOperations.has(second.id));
   assert.equal(
     (await fetch(path(base, second), { method: 'DELETE', headers: headers(second) })).status,
     200,

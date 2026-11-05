@@ -353,3 +353,30 @@ Bug reports, fixes and small improvements are welcome. Read [CONTRIBUTING.md](CO
 Ghostdrop is free software under the [GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified version as a public service, the AGPL requires you to offer its source code to your users; the footer's **Source** link is there to make that easy.
 
 Made by [gimeno.dev](https://gimeno.dev).
+
+### Usage metrics
+
+Set `METRICS_TOKEN` on the backend to a long random secret to enable the read-only
+`GET /api/metrics?days=30` endpoint. Leave it empty to disable the endpoint. Send
+`Authorization: Bearer <METRICS_TOKEN>` over HTTPS from your dashboard's server.
+This token grants no admin or file access. Keep it out of frontend code.
+
+The JSON response includes `trackedSince` and `generatedAt` as Unix milliseconds,
+`current.activeFiles` and `current.storedBytes` for available, unexpired files,
+all-time `totals`, and a zero-filled `daily` series in UTC. `days` accepts 1–366
+and defaults to 30, including today. Each counter group contains `uploads`,
+`uploadedBytes`, `downloads`, `downloadedBytes`, and `lastActivityAt`, which is
+null when there is no recorded activity. Totals cover all recorded days regardless
+of the requested window. Stored bytes are logical file sizes, excluding partial
+uploads and files pending deletion.
+
+Only finalized uploads count, in the same database transaction as the file.
+Downloads count when the server finishes writing a public download response;
+this does not prove the recipient saved it. Previews, admin downloads, rejected
+requests and interrupted responses do not count. A process crash before recording
+a finished response can lose that download. Repeated successful downloads count
+separately. One-time files count even though the file record is removed.
+
+Counters survive file expiry, deletion and restarts in `metadata.sqlite`. Tracking
+begins when this version first opens the database; existing files and erased
+history are not backfilled. Metrics store no filenames, IP addresses or file IDs.
