@@ -1,0 +1,13 @@
+project = "Ghostdrop"
+domain = "ghostdrop.gimeno.dev"
+
+[apps.frontend]
+dockerfile = "apps/frontend/Dockerfile"
+port = 80
+watch = [".dockerignore", "apps/frontend/Dockerfile", "apps/frontend/nginx.conf", "apps/frontend/public/**"]
+
+[apps.backend]
+dockerfile = "apps/backend/Dockerfile"
+port = 3000
+path = "/api"
+watch = [".dockerignore", "apps/backend/Dockerfile", "apps/backend/package.json", "apps/backend/scripts/**", "apps/backend/src/**", "package-lock.json", "package.json"]
